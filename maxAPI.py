@@ -1,3 +1,4 @@
+from decimal import Decimal
 import time
 import json
 import hmac
@@ -47,15 +48,39 @@ class MaxBaseAPI:
 
 # 2. 查詢模組：繼承 Base，專門放 GET 類型的唯讀操作
 class MaxQueryAPI(MaxBaseAPI):
-    def get_money(self, asset="usdt"):
-        path = "/api/v3/members/me"
+    def __init__(self, key, secret, cache_ttl=60):
+        super().__init__(key, secret)
+        self.assets = {}
+        self.last_update_time = 0.0  # 紀錄最後一次成功更新的時間戳記
+        self.cache_ttl = cache_ttl   # 快取存活時間 (預設 60 秒)
+
+    def _is_cache_expired(self):
+        """判斷內部快取是否已經過期"""
+        # 如果當前時間 - 最後更新時間 > 存活時間，或是字典根本是空的，就代表過期
+        return (time.time() - self.last_update_time) > self.cache_ttl or not self.assets
+    
+    def get_all_balance(self):
+        """強制發送 API 請求更新資料"""
+        path = "/api/v3/wallet/spot/accounts"
         response = self._send_request('GET', path)
         
-        accounts = response.get('accounts', [])
-        for acc in accounts:
-            if acc.get('currency') == asset.lower():
-                return float(acc.get('balance', 0))
-        return 0.0
+        self.assets.clear()
+        for acc in response:
+            balance = float(acc.get('balance', 0))
+            if balance > 0:
+                currency = acc.get('currency').lower()
+                self.assets[currency] = balance
+                
+        # 更新完畢後，把最後更新時間設為「現在」
+        self.last_update_time = time.time()
+        return self.assets
+
+    def get_money(self, asset="usdt"):
+        """取得單一幣種餘額 (具備自動快取保護)"""
+        if self._is_cache_expired():
+            self.fetch_and_update_balances()
+            
+        return self.assets.get(asset.lower(), 0.0)
 
     def get_position(self, symbol):
         # 簡易的 base asset 萃取邏輯
