@@ -1,37 +1,16 @@
-from binance.um_futures import UMFutures
+import os
+from dotenv import load_dotenv
+from maxAPI import MaxQueryAPI, MaxTradeAPI
+load_dotenv()
 
-class orderAPI:
-    def __init__(self, key, secret):
-        self.api_key = key
-        self.api_secret = secret
-        self.client = UMFutures(key=self.api_key, secret=self.api_secret)
+# 假設你為了安全，申請了兩組不同的 Key
+ACCESS_KEY = os.getenv("MAX_ACCESS")
+SECRET_KEY = os.getenv("MAX_SECRET")
 
-    def get_money(self):
-        account_info = self.client.account()
-        assets = account_info.get('assets')
-        usdt = next((asset for asset in assets if asset.get('asset') == "USDT"), None)
-        balance = usdt.get('marginBalance')
+# 給前端 UI 顯示餘額用的實例
+query_client = MaxQueryAPI(ACCESS_KEY, SECRET_KEY)
+print(f"目前 USDT 餘額: {query_client.get_money('usdt')}")
 
-        return balance
-
-    def market_order(self, symbol, side, quantity):
-        order = self.client.new_order(
-            symbol=symbol,
-            side=side,          # BUY or SELL
-            type="MARKET",       # 市價單
-            quantity=quantity    # SUI 顆數
-        )
-
-    def get_position(self, symbol=None):
-        account_info = self.client.account()
-        positions = account_info.get('positions') # 因為只有一種幣別，一個方向
-        amount = None
-        
-        for position in positions:
-            if position.get('symbol') == symbol:
-                amount = position.get('positionAmt')
-
-        return amount
-
-if __name__ == "__main__":
-    pass
+# 給後端策略觸發下單用的實例
+trade_client = MaxTradeAPI(ACCESS_KEY, SECRET_KEY)
+# trade_client.market_order('btcusdt', 'buy', 0.01)

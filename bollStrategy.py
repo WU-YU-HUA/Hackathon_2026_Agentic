@@ -1,4 +1,4 @@
-from get_data import CryptoData
+from getData import CryptoData
 from order import orderAPI
 
 ###### Bolling *3

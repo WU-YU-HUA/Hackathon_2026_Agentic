@@ -1,7 +1,7 @@
 import datetime
 import json
 import os
-from boll_eth import BollStrategy
+from bollStrategy import BollStrategy
 from my_telegram import send_telegram
 
 STATUS_FILE = "eth_status.json"
@@ -178,35 +178,7 @@ def main():
             status["slop"] = strategy.slop
             status["open_time"] = strategy.open_time
             save_status(status)
-
-        # 整理 Telegram 訊息
-        msg_lines = []
-        msg_lines.append("========= 執行狀態 =========")
-        msg_lines.append(f"時間: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
-        if 'strategy' in locals():
-            msg_lines.append(f"入場狀態: {strategy.order_exist}")
-            msg_lines.append(f"持倉數量: {strategy.quantity}")
-            msg_lines.append(f"當前 narrow: {strategy.narrow}")
-            msg_lines.append(f"當前 slop: {strategy.slop}")
-        else:
-            msg_lines.append("狀態: 策略初始化失敗")
-            
-        msg_lines.append("===========================")
-        
-        if logs:
-            msg_lines.append("執行紀錄:")
-            for l in logs:
-                msg_lines.append(f"{l}")
-
-        final_message = "\n".join(msg_lines)
-        
-        # 發送 Telegram
-        try:
-            send_telegram(final_message)
-        except Exception as e:
-            with open("error_log.txt", "a", encoding="utf-8") as f:
-                f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Telegram 發送失敗: {e}\n")
 
 if __name__ == '__main__':
     main()
