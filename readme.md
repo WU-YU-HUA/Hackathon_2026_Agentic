@@ -1,1 +1,1 @@
-https://max-api.maicoin.com/doc/v3.html#section/%E5%9F%BA%E6%9C%AC%E4%BB%8B%E7%B4%B9
+https://max-api.maicoin.com/doc/v3.html

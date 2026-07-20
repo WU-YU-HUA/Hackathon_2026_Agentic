@@ -1,8 +1,13 @@
+import json
+import os
 import requests
 import pandas as pd
 import datetime
 from ta.volatility import BollingerBands
+from dotenv import load_dotenv
 
+# 載入當前目錄下的 .env 檔案
+load_dotenv()
 class CryptoData:
     def __init__(self, symbol="btcusdt", interval="1h", period=20, end=None):
         if end is None:
@@ -32,7 +37,7 @@ class CryptoData:
             # MAX 交易所的 timestamp 是以「秒」為單位 (幣安是毫秒)
             stime = int(self.start.timestamp())
             
-            path = "/api/v3/klines"
+            path = "/api/v3/k"
             url = self.base_url + path
             
             # 設定 API 請求參數
