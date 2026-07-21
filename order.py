@@ -13,4 +13,4 @@ print(f"目前 USDT 餘額: {query_client.get_money('usdt')}")
 
 # 給後端策略觸發下單用的實例
 trade_client = MaxTradeAPI(ACCESS_KEY, SECRET_KEY)
-# trade_client.market_order('btcusdt', 'buy', 0.01)
+print(trade_client.market_order('usdttwd', 'sell', 1))

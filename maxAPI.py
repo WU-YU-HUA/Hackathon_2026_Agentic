@@ -46,8 +46,8 @@ class MaxBaseAPI:
         return response.json()
 
 
-# 2. 查詢模組：繼承 Base，專門放 GET 類型的唯讀操作
 class MaxQueryAPI(MaxBaseAPI):
+    """資產模組"""
     def __init__(self, key, secret, cache_ttl=60):
         super().__init__(key, secret)
         self.assets = {}
@@ -56,11 +56,10 @@ class MaxQueryAPI(MaxBaseAPI):
 
     def _is_cache_expired(self):
         """判斷內部快取是否已經過期"""
-        # 如果當前時間 - 最後更新時間 > 存活時間，或是字典根本是空的，就代表過期
         return (time.time() - self.last_update_time) > self.cache_ttl or not self.assets
     
     def get_all_balance(self):
-        """強制發送 API 請求更新資料"""
+        """強制發送 API 請求更新資料，更新總資產"""
         path = "/api/v3/wallet/spot/accounts"
         response = self._send_request('GET', path)
         
@@ -78,7 +77,7 @@ class MaxQueryAPI(MaxBaseAPI):
     def get_money(self, asset="usdt"):
         """取得單一幣種餘額 (具備自動快取保護)"""
         if self._is_cache_expired():
-            self.fetch_and_update_balances()
+            self.get_all_balance()
             
         return self.assets.get(asset.lower(), 0.0)
 
@@ -91,10 +90,11 @@ class MaxQueryAPI(MaxBaseAPI):
         return self.get_money(asset=base_asset)
 
 
-# 3. 交易模組：繼承 Base，專門放 POST/DELETE 類型的危險操作
 class MaxTradeAPI(MaxBaseAPI):
+    """交易模組"""
     def market_order(self, symbol, side, quantity):
-        path = "/api/v3/orders"
+        """市價單"""
+        path = "/api/v3/wallet/spot/order"
         params = {
             'market': symbol.lower(),
             'side': side.lower(),
@@ -102,7 +102,21 @@ class MaxTradeAPI(MaxBaseAPI):
             'volume': str(quantity) 
         }
         return self._send_request('POST', path, params)
+    
+    def limit_order(self, symbol, side, price, quantity):
+        """限價單"""
+        path = "/api/v3/wallet/spot/order"
         
+        params = {
+            'market': symbol.lower(),
+            'side': side.lower(),
+            'ord_type': 'limit',       # 限價單
+            'price': str(price),       # 限價單必須提供 price (價格)
+            'volume': str(quantity)
+        }
+        
+        return self._send_request('POST', path, params)
+
     def cancel_all_orders(self, symbol):
         """順便幫你把稍早測試的刪單功能加進來"""
         path = "/api/v3/wallet/spot/orders"
