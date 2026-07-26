@@ -19,4 +19,5 @@ def coinGeckoVote(symbol:str = "bitcoin"):
 
 
 if __name__ == "__main__":
-    pass
+    vote = coinGeckoVote("bitcoin")
+    print(vote)
