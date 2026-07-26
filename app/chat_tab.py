@@ -5,6 +5,67 @@ import numpy as np
 from datetime import datetime
 import os
 import json
+import sys
+
+# 添加 api 資料夾到路徑
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'api'))
+
+from api.getData import CryptoData
+from api.fearGreed import FearGreedData
+from api.social import coinGeckoVote
+from api.symbol_mapping import get_coingecko_id
+
+def create_gauge_chart(value, title, color_scheme="fear_greed"):
+    """
+    創建半圓儀表盤
+    
+    :param value: 數值 (0-100)
+    :param title: 圖表標題
+    :param color_scheme: 配色方案 ('fear_greed' 或 'sentiment')
+    """
+    if color_scheme == "fear_greed":
+        # 恐懼貪婪指數配色 (0=極度恐懼紅色, 100=極度貪婪綠色)
+        colors = ['#d32f2f', '#f57c00', '#fbc02d', '#7cb342', '#388e3c']
+        threshold_steps = [0, 25, 50, 75, 100]
+    else:
+        # 多空投票配色 (0=極度看空, 100=極度看多)
+        colors = ['#d32f2f', '#f57c00', '#fbc02d', '#7cb342', '#388e3c']
+        threshold_steps = [0, 25, 50, 75, 100]
+    
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=value,
+        domain={'x': [0, 1], 'y': [0, 1]},
+        title={'text': title, 'font': {'size': 20}},
+        number={'font': {'size': 40}},
+        gauge={
+            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
+            'bar': {'color': "darkblue", 'thickness': 0.25},
+            'bgcolor': "white",
+            'borderwidth': 2,
+            'bordercolor': "gray",
+            'steps': [
+                {'range': [threshold_steps[0], threshold_steps[1]], 'color': colors[0]},
+                {'range': [threshold_steps[1], threshold_steps[2]], 'color': colors[1]},
+                {'range': [threshold_steps[2], threshold_steps[3]], 'color': colors[2]},
+                {'range': [threshold_steps[3], threshold_steps[4]], 'color': colors[3]},
+            ],
+            'threshold': {
+                'line': {'color': "white", 'width': 4},
+                'thickness': 0.75,
+                'value': value
+            }
+        }
+    ))
+    
+    fig.update_layout(
+        height=300,
+        margin={'t': 50, 'b': 0, 'l': 20, 'r': 20},
+        paper_bgcolor="rgba(0,0,0,0)",
+        font={'color': "white", 'family': "Arial"}
+    )
+    
+    return fig
 
 def get_allowed_pairs():
     """從 .env 讀取允許的交易對"""
@@ -123,54 +184,52 @@ def render_chat_tab(tools_config):
     # 如果還沒有分析結果，自動生成
     if not st.session_state.show_dashboard and st.session_state.selected_pair:
         detected_symbol = st.session_state.current_symbol
+        selected_pair = st.session_state.selected_pair
         
-        ai_response = f"已為您分析 {detected_symbol}，請參考以下儀表板："
-        st.session_state.chat_history.append({"role": "assistant", "content": ai_response})
-        
-        # 根據幣種設定不同的價格範圍
-        if detected_symbol == "BTC":
-            current_price = np.random.uniform(40000, 70000)
-        elif detected_symbol == "ETH":
-            current_price = np.random.uniform(2000, 4000)
-        elif detected_symbol == "SOL":
-            current_price = np.random.uniform(20, 200)
-        elif detected_symbol == "BNB":
-            current_price = np.random.uniform(200, 600)
-        elif detected_symbol == "XRP":
-            current_price = np.random.uniform(0.3, 2)
-        else:
-            current_price = np.random.uniform(10, 1000)
-            
-        change_24h = np.random.uniform(-5, 10)
-        rsi = np.random.uniform(30, 80)
-        
-        # 根據風險等級和交易人格調整共識評分和建議
-        risk_factor = st.session_state.risk_level / 5.0  # 0.2 ~ 1.0
-        
-        if trading_persona == "Degen":
-            base_score = np.random.randint(70, 85)
-            confluence_score = int(base_score + (risk_factor * 10))
-            recommendation = "🚀 買進" if confluence_score > 70 else "⏳ 觀望"
-        else:
-            base_score = np.random.randint(50, 70)
-            confluence_score = int(base_score + (risk_factor * 5))
-            recommendation = "⏳ 觀望" if confluence_score < 70 else "🚀 買進"
-        
-        st.session_state.analysis_result = {
-            "symbol": detected_symbol,
-            "pair": st.session_state.selected_pair,
-            "price": current_price,
-            "change_24h": change_24h,
-            "rsi": rsi,
-            "confluence_score": min(confluence_score, 100),
-            "recommendation": recommendation,
-            "risk_level": st.session_state.risk_level,
-            "bollinger_enabled": tools_config["bollinger"],
-            "ma_enabled": tools_config["ma"],
-            "sentiment_enabled": tools_config["sentiment"]
-        }
-        st.session_state.show_dashboard = True
-        st.rerun()
+        with st.spinner(f'正在獲取 {detected_symbol} 的數據...'):
+            try:
+                # 1. 獲取技術指標數據
+                crypto_data = CryptoData()
+                tech_data = crypto_data.get_technical_data(
+                    symbol=selected_pair.lower(),
+                    interval="1h",
+                    period=100  # 增加天數以確保有足夠數據計算 MA99
+                )
+                
+                # 2. 獲取恐懼貪婪指數
+                fear_greed_api = FearGreedData(limit=1)
+                fear_greed_data = fear_greed_api.get_raw_data()
+                
+                # 3. 獲取社群投票數據
+                coingecko_id = get_coingecko_id(detected_symbol)
+                social_data = coinGeckoVote(coingecko_id)
+                
+                # 檢查是否有錯誤
+                if "error" in tech_data:
+                    st.error(f"❌ 獲取技術數據失敗: {tech_data['error']}")
+                    return
+                
+                ai_response = f"已為您分析 {detected_symbol}，請參考以下儀表板："
+                st.session_state.chat_history.append({"role": "assistant", "content": ai_response})
+                
+                # 儲存數據到 session state
+                st.session_state.analysis_result = {
+                    "symbol": detected_symbol,
+                    "pair": selected_pair,
+                    "risk_level": st.session_state.risk_level,
+                    "tech_data": tech_data,
+                    "fear_greed": fear_greed_data,
+                    "social": social_data,
+                    "coingecko_id": coingecko_id,
+                }
+                st.session_state.show_dashboard = True
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ 獲取數據時發生錯誤: {str(e)}")
+                import traceback
+                st.error(traceback.format_exc())
+                return
     
     # 使用者輸入
     user_input = st.chat_input("繼續對話或輸入其他問題")
@@ -205,109 +264,241 @@ def render_chat_tab(tools_config):
     # 顯示儀表板
     if st.session_state.show_dashboard and st.session_state.analysis_result:
         st.divider()
-        st.subheader("📊 即時分析儀表板 (Dashboard)")
+        st.subheader("📊 即時分析儀表板")
         
         result = st.session_state.analysis_result
+        tech_data = result.get('tech_data', {})
+        fear_greed_data = result.get('fear_greed', {})
+        social_data = result.get('social', {})
         
-        # 顯示風險等級
-        risk_labels = {1: "極低風險", 2: "低風險", 3: "中等風險", 4: "高風險", 5: "極高風險"}
-        risk_colors = {1: "🟢", 2: "🟡", 3: "🟠", 4: "🟠", 5: "🔴"}
+        # === Dashboard 1: 技術指標數據 ===
+        st.subheader("� 技術指標數據")
         
-        col1, col2, col3, col4, col5 = st.columns(5)
-        col1.metric("當前價格", f"${result['price']:,.2f}", f"{result['change_24h']:+.2f}%")
-        col2.metric("RSI 指標", f"{result['rsi']:.1f}")
-        col3.metric("共識評分", f"{result['confluence_score']}/100")
-        col4.metric("建議動作", result['recommendation'])
-        col5.metric("風險等級", f"{risk_colors[result['risk_level']]} {result['risk_level']}")
+        col1, col2 = st.columns(2)
         
-        st.subheader("📈 互動式 K 線圖")
-        dates = pd.date_range(end=datetime.now(), periods=60, freq='h')
-        base_price = result['price']
-        
-        np.random.seed(42)
-        opens = base_price + np.random.randn(60).cumsum() * (base_price * 0.01)
-        closes = opens + np.random.randn(60) * (base_price * 0.005)
-        highs = np.maximum(opens, closes) + np.abs(np.random.randn(60) * (base_price * 0.003))
-        lows = np.minimum(opens, closes) - np.abs(np.random.randn(60) * (base_price * 0.003))
-        
-        fig = go.Figure(data=[go.Candlestick(
-            x=dates, open=opens, high=highs, low=lows, close=closes, name=result['symbol']
-        )])
-        
-        if result['bollinger_enabled']:
-            ma20 = pd.Series(closes).rolling(20).mean()
-            std20 = pd.Series(closes).rolling(20).std()
-            fig.add_trace(go.Scatter(x=dates, y=ma20 + (std20 * 2), name='布林上軌', line=dict(color='rgba(250, 128, 114, 0.5)', dash='dash')))
-            fig.add_trace(go.Scatter(x=dates, y=ma20, name='MA20 (中軌)', line=dict(color='orange')))
-            fig.add_trace(go.Scatter(x=dates, y=ma20 - (std20 * 2), name='布林下軌', line=dict(color='rgba(135, 206, 250, 0.5)', dash='dash')))
-        
-        if result['ma_enabled']:
-            fig.add_trace(go.Scatter(x=dates, y=pd.Series(closes).rolling(7).mean(), name='MA7', line=dict(color='green')))
-            fig.add_trace(go.Scatter(x=dates, y=pd.Series(closes).rolling(25).mean(), name='MA25', line=dict(color='blue')))
-        
-        fig.update_layout(
-            title=f"{result['symbol']}/USDT - 風險等級 {result['risk_level']}",
-            yaxis_title="價格 (USD)",
-            xaxis_title="時間",
-            template="plotly_dark",
-            height=500
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        st.subheader("📝 綜合分析報告")
-        col_left, col_right = st.columns([2, 1])
-        
-        with col_left:
-            # 根據風險等級調整分析建議
-            risk_advice = {
-                1: "建議保守操作，優先選擇市值前10的穩定幣種",
-                2: "可適度參與，但建議設定較小的止損點",
-                3: "可正常操作，但需密切關注市場動態",
-                4: "適合有經驗的交易者，需做好風控",
-                5: "高風險高報酬，建議僅用閒錢操作"
-            }
-            
-            st.markdown(f"""
-### 各項指標貢獻度
-            
-| 指標 | 評分 | 權重 |
-|------|------|------|
-| 布林通道 | {np.random.randint(60, 80)}/100 | 30% |
-| 移動平均線 | {np.random.randint(70, 90)}/100 | 35% |
-| 社群情緒 | {np.random.randint(65, 85)}/100 | 35% |
-
-**最終共識評分**: {result['confluence_score']}/100
-
-**風險等級**: {risk_colors[result['risk_level']]} {risk_labels[result['risk_level']]}
-
-**建議動作**: {result['recommendation']}
-
-**理由**: {'社群情緒強勁，價格突破中軌，短線機會明確' if trading_persona == 'Degen' else '趨勢向上但需等待回調，建議觀望或小倉位進場'}
-
-**風險提示**: {risk_advice[result['risk_level']]}
-
----
-*根據 {trading_persona} 交易人格與風險等級 {result['risk_level']} 生成*
-            """)
-        
-        with col_right:
-            st.info("💡 **操作建議**")
-            if "買進" in result['recommendation']:
-                st.success(f"✅ 建議買進 {result['symbol']}")
-                st.write(f"**建議價格**: ${result['price']:,.2f}")
-                
-                # 根據風險等級建議倉位
-                position_advice = {
-                    1: "5-10%",
-                    2: "10-15%",
-                    3: "10-20%",
-                    4: "15-25%",
-                    5: "20-30%"
-                }
-                st.write(f"**建議倉位**: {position_advice[result['risk_level']]} 資金")
-                
-                if st.button("🎯 前往下單", key="go_to_order"):
-                    st.success("請切換至「模擬下單」頁籤")
+        with col1:
+            st.markdown("#### 移動平均線 (MA)")
+            ma_data = tech_data.get('ma', {})
+            if ma_data:
+                ma_df = pd.DataFrame({
+                    '週期': ['MA 7', 'MA 25', 'MA 99'],
+                    '數值': [
+                        f"${ma_data.get('ma_7', 0):,.2f}",
+                        f"${ma_data.get('ma_25', 0):,.2f}",
+                        f"${ma_data.get('ma_99', 0):,.2f}"
+                    ]
+                })
+                st.dataframe(ma_df, hide_index=True, use_container_width=True)
             else:
-                st.warning("⏳ 建議觀望")
-                st.write("等待更好的進場時機")
+                st.info("無 MA 數據")
+            
+            st.markdown("#### 指數移動平均線 (EMA)")
+            ema_data = tech_data.get('ema', {})
+            if ema_data:
+                ema_df = pd.DataFrame({
+                    '週期': ['EMA 7', 'EMA 25', 'EMA 99'],
+                    '數值': [
+                        f"${ema_data.get('ema_7', 0):,.2f}",
+                        f"${ema_data.get('ema_25', 0):,.2f}",
+                        f"${ema_data.get('ema_99', 0):,.2f}"
+                    ]
+                })
+                st.dataframe(ema_df, hide_index=True, use_container_width=True)
+            else:
+                st.info("無 EMA 數據")
+        
+        with col2:
+            st.markdown("#### 布林通道 (Bollinger Bands)")
+            bb_data = tech_data.get('bollinger_bands', {})
+            if bb_data:
+                bb_df = pd.DataFrame({
+                    '指標': ['上軌', '中軌', '下軌'],
+                    '數值': [
+                        f"${bb_data.get('upper', 0):,.2f}",
+                        f"${bb_data.get('middle', 0):,.2f}",
+                        f"${bb_data.get('lower', 0):,.2f}"
+                    ]
+                })
+                st.dataframe(bb_df, hide_index=True, use_container_width=True)
+                st.caption(f"視窗: {bb_data.get('window', 20)} | 標準差倍數: {bb_data.get('dev', 2)}")
+            else:
+                st.info("無布林通道數據")
+            
+            st.markdown("#### 其他指標")
+            other_df = pd.DataFrame({
+                '指標': ['當前價格', 'RSI', '時間範圍'],
+                '數值': [
+                    f"${tech_data.get('price', 0):,.2f}",
+                    f"{tech_data.get('rsi', {}).get('value', 0):.2f}",
+                    tech_data.get('interval', 'N/A')
+                ]
+            })
+            st.dataframe(other_df, hide_index=True, use_container_width=True)
+        
+        st.divider()
+        
+        # === Dashboard 2 & 3: 半圓儀表盤 ===
+        st.subheader("📊 市場情緒指標")
+        
+        gauge_col1, gauge_col2, gauge_col3 = st.columns(3)
+        
+        with gauge_col1:
+            # Dashboard 2: 恐懼貪婪指數
+            if 'error' not in fear_greed_data:
+                fg_value = fear_greed_data.get('value', 50)
+                fg_sentiment = fear_greed_data.get('sentiment', 'Neutral')
+                
+                fig_fg = create_gauge_chart(fg_value, "恐懼貪婪指數", "fear_greed")
+                st.plotly_chart(fig_fg, use_container_width=True)
+                
+                st.markdown(f"""
+                <div style='text-align: center; padding: 10px;'>
+                    <h4>當前情緒: {fg_sentiment}</h4>
+                    <p style='color: gray;'>數值: {fg_value}/100</p>
+                    <p style='color: gray;'>資料來源: Alternative.me</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.warning("⚠️ 無法獲取恐懼貪婪指數")
+        
+        with gauge_col2:
+            # Dashboard 3: 社群多空投票
+            if social_data and 'up' in social_data:
+                social_up = social_data.get('up', 50)
+                social_down = social_data.get('down', 50)
+                
+                fig_social = create_gauge_chart(social_up, "社群看多比例", "sentiment")
+                st.plotly_chart(fig_social, use_container_width=True)
+                
+                st.markdown(f"""
+                <div style='text-align: center; padding: 10px;'>
+                    <h4>看多: {social_up:.1f}% | 看空: {social_down:.1f}%</h4>
+                    <p style='color: gray;'>資料來源: CoinGecko</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.warning("⚠️ 無法獲取社群投票數據")
+        
+        with gauge_col3:
+            # RSI 指標儀表盤
+            rsi_value = tech_data.get('rsi', {}).get('value', 50)
+            fig_rsi = create_gauge_chart(rsi_value, "RSI 相對強弱指標", "fear_greed")
+            st.plotly_chart(fig_rsi, use_container_width=True)
+            
+            rsi_status = "超買" if rsi_value > 70 else "超賣" if rsi_value < 30 else "正常"
+            st.markdown(f"""
+            <div style='text-align: center; padding: 10px;'>
+                <h4>狀態: {rsi_status}</h4>
+                <p style='color: gray;'>RSI {rsi_value:.1f}</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.divider()
+        
+        # === K 線圖 ===
+        st.subheader("📈 互動式 K 線圖")
+        
+        # 使用真實歷史數據繪製 K 線圖
+        try:
+            crypto_data = CryptoData()
+            history_df = crypto_data.get_history_df(
+                symbol=result['pair'].lower(),
+                interval="1h",
+                period=7  # 最近7天數據
+            )
+            
+            if not history_df.empty:
+                # 轉換時間戳
+                history_df['datetime'] = pd.to_datetime(history_df['timestamp'], unit='s')
+                
+                # 創建 K 線圖
+                fig = go.Figure(data=[go.Candlestick(
+                    x=history_df['datetime'],
+                    open=history_df['open'],
+                    high=history_df['high'],
+                    low=history_df['low'],
+                    close=history_df['close'],
+                    name=result['symbol']
+                )])
+                
+                # 添加 MA 線
+                if 'ma_7' in history_df.columns:
+                    fig.add_trace(go.Scatter(
+                        x=history_df['datetime'], 
+                        y=history_df['ma_7'], 
+                        name='MA7', 
+                        line=dict(color='cyan', width=1)
+                    ))
+                if 'ma_25' in history_df.columns:
+                    fig.add_trace(go.Scatter(
+                        x=history_df['datetime'], 
+                        y=history_df['ma_25'], 
+                        name='MA25', 
+                        line=dict(color='yellow', width=1)
+                    ))
+                
+                # 添加 EMA 線
+                if 'ema_7' in history_df.columns:
+                    fig.add_trace(go.Scatter(
+                        x=history_df['datetime'], 
+                        y=history_df['ema_7'], 
+                        name='EMA7', 
+                        line=dict(color='lightgreen', width=1, dash='dot')
+                    ))
+                if 'ema_25' in history_df.columns:
+                    fig.add_trace(go.Scatter(
+                        x=history_df['datetime'], 
+                        y=history_df['ema_25'], 
+                        name='EMA25', 
+                        line=dict(color='orange', width=1, dash='dot')
+                    ))
+                
+                # 添加布林通道
+                if 'bb_upper' in history_df.columns:
+                    fig.add_trace(go.Scatter(
+                        x=history_df['datetime'], 
+                        y=history_df['bb_upper'], 
+                        name='布林上軌', 
+                        line=dict(color='rgba(250, 128, 114, 0.5)', dash='dash')
+                    ))
+                    fig.add_trace(go.Scatter(
+                        x=history_df['datetime'], 
+                        y=history_df['bb_middle'], 
+                        name='布林中軌', 
+                        line=dict(color='orange')
+                    ))
+                    fig.add_trace(go.Scatter(
+                        x=history_df['datetime'], 
+                        y=history_df['bb_lower'], 
+                        name='布林下軌', 
+                        line=dict(color='rgba(135, 206, 250, 0.5)', dash='dash')
+                    ))
+                
+                fig.update_layout(
+                    title=f"{result['symbol']}/USDT - 風險等級 {result['risk_level']}",
+                    yaxis_title="價格 (USD)",
+                    xaxis_title="時間",
+                    template="plotly_dark",
+                    height=600,
+                    xaxis_rangeslider_visible=False
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("⚠️ 無法獲取歷史 K 線數據")
+        except Exception as e:
+            st.error(f"❌ 繪製 K 線圖時發生錯誤: {str(e)}")
+        
+        st.divider()
+        
+        # === 預留空間：Agent 分析報告 ===
+        st.subheader("🤖 AI 分析報告")
+        st.info("💡 此區域預留給 Agent 生成的分析報告")
+        
+        # TODO: 在此處顯示 Agent 生成的報告
+        # 可以使用 st.session_state.agent_report 來存儲報告內容
+        if 'agent_report' in st.session_state and st.session_state.agent_report:
+            st.markdown(st.session_state.agent_report)
+        else:
+            st.write("報告尚未生成，請等待 Agent 分析完成...")
+        
+        st.divider()

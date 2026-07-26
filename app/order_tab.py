@@ -98,15 +98,9 @@ def render_order_tab():
         # 交易對選擇（只允許 .env 中配置的交易對）
         pair_symbols = [parse_symbol_from_pair(pair) for pair in allowed_pairs]
         
-        # 如果有分析結果，優先使用分析的幣種
-        default_symbol = st.session_state.current_symbol if st.session_state.current_symbol else pair_symbols[0]
-        if default_symbol not in pair_symbols:
-            default_symbol = pair_symbols[0]
-        
         selected_symbol = st.selectbox(
             "交易幣種",
             pair_symbols,
-            index=pair_symbols.index(default_symbol) if default_symbol in pair_symbols else 0,
             help=f"僅支援交易對: {', '.join(allowed_pairs)}"
         )
         
@@ -134,16 +128,13 @@ def render_order_tab():
             order_price = st.number_input(
                 "委託價格 (USDT)",
                 min_value=0.01,
-                value=float(st.session_state.analysis_result['price']) if st.session_state.analysis_result else 50000.0,
+                value=50000.0,
                 step=0.01,
                 help="限價單必須指定價格"
             )
         else:
-            order_price = float(st.session_state.analysis_result['price']) if st.session_state.analysis_result else 0.0
-            if order_price > 0:
-                st.info(f"💡 市價單將以當前市場最佳價格成交（參考價: ${order_price:,.2f}）")
-            else:
-                st.info("💡 市價單將以當前市場最佳價格成交")
+            order_price = 0.0
+            st.info("💡 市價單將以當前市場最佳價格成交")
         
         # 數量輸入
         if "買進" in order_side:
@@ -241,38 +232,36 @@ def render_order_tab():
                 st.rerun()
     
     with col_info:
-        st.subheader("📊 帳戶總覽")
+        st.subheader("📊 帳戶持倉數量")
         
         # 顯示所有資產
         if hasattr(st.session_state, 'real_balances') and st.session_state.real_balances:
             balances = st.session_state.real_balances
             
-            # 顯示 USDT 餘額
+            # 獨立顯示 USDT 餘額
             usdt_balance = balances.get('usdt', 0.0)
-            st.metric("💵 可用 USDT", f"${usdt_balance:,.2f}")
+            st.metric("💵 可用 USDT", f"{usdt_balance:,.4f}")
             
             st.divider()
             
-            # 顯示其他持倉
-            st.write("**📦 當前持倉：**")
+            st.write("**📦 各幣種持有數量：**")
             
-            has_positions = False
+            # 整理數量大於 0 的幣種成表格顯示
+            display_data = []
             for currency, amount in balances.items():
                 if currency != 'usdt' and amount > 0:
-                    has_positions = True
-                    with st.expander(f"{currency.upper()}: {amount:.6f}"):
-                        st.write(f"- 幣種: {currency.upper()}")
-                        st.write(f"- 數量: {amount:.6f}")
-                        
-                        # 如果有分析結果且幣種匹配，顯示估值
-                        if (st.session_state.analysis_result and 
-                            st.session_state.analysis_result['symbol'].lower() == currency):
-                            current_price = st.session_state.analysis_result['price']
-                            current_value = amount * current_price
-                            st.write(f"- 估值: ${current_value:,.2f} USDT")
+                    display_data.append({
+                        "幣種": currency.upper(),
+                        "數量": f"{amount:.6f}"
+                    })
             
-            if not has_positions:
+            if display_data:
+                df_balances = pd.DataFrame(display_data)
+                # 隱藏 index 並撐滿寬度顯示
+                st.dataframe(df_balances, hide_index=True, use_container_width=True)
+            else:
                 st.info("目前無其他持倉")
+                
         else:
             st.info("⏳ 載入資產資料中...")
             # 首次載入
@@ -292,5 +281,3 @@ def render_order_tab():
         st.info(f"**支援的交易對**: {', '.join(allowed_pairs)}")
     with col_info2:
         st.info(f"**API 狀態**: {'🟢 已連接' if query_client else '🔴 未連接'}")
-    with col_info2:
-        st.info(f"**API 狀態**: {'🟢 已連接' if query_client else '� 未連接'}")
