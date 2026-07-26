@@ -17,7 +17,7 @@ from api.symbol_mapping import get_coingecko_id
 
 def create_gauge_chart(value, title, color_scheme="fear_greed"):
     """
-    創建半圓儀表盤
+    創建半圓儀表盤（帶明顯指針）
     
     :param value: 數值 (0-100)
     :param title: 圖表標題
@@ -25,25 +25,32 @@ def create_gauge_chart(value, title, color_scheme="fear_greed"):
     """
     if color_scheme == "fear_greed":
         # 恐懼貪婪指數配色 (0=極度恐懼紅色, 100=極度貪婪綠色)
-        colors = ['#d32f2f', '#f57c00', '#fbc02d', '#7cb342', '#388e3c']
+        colors = ['#d32f2f', '#f57c00', '#ffc107', '#8bc34a', '#4caf50']
         threshold_steps = [0, 25, 50, 75, 100]
     else:
         # 多空投票配色 (0=極度看空, 100=極度看多)
-        colors = ['#d32f2f', '#f57c00', '#fbc02d', '#7cb342', '#388e3c']
+        colors = ['#d32f2f', '#f57c00', '#ffc107', '#8bc34a', '#4caf50']
         threshold_steps = [0, 25, 50, 75, 100]
     
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=value,
         domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': title, 'font': {'size': 20}},
-        number={'font': {'size': 40}},
+        title={'text': title, 'font': {'size': 20, 'color': 'white'}},
+        number={'font': {'size': 40, 'color': 'white'}},
         gauge={
-            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
-            'bar': {'color': "darkblue", 'thickness': 0.25},
-            'bgcolor': "white",
-            'borderwidth': 2,
-            'bordercolor': "gray",
+            'axis': {
+                'range': [0, 100], 
+                'tickwidth': 2, 
+                'tickcolor': "white",
+                'tickmode': 'linear',
+                'tick0': 0,
+                'dtick': 25
+            },
+            'bar': {'color': "rgba(255, 255, 255, 0.8)", 'thickness': 0.15},  # 白色指針條
+            'bgcolor': "rgba(50, 50, 50, 0.3)",
+            'borderwidth': 3,
+            'bordercolor': "rgba(255, 255, 255, 0.5)",
             'steps': [
                 {'range': [threshold_steps[0], threshold_steps[1]], 'color': colors[0]},
                 {'range': [threshold_steps[1], threshold_steps[2]], 'color': colors[1]},
@@ -51,8 +58,8 @@ def create_gauge_chart(value, title, color_scheme="fear_greed"):
                 {'range': [threshold_steps[3], threshold_steps[4]], 'color': colors[3]},
             ],
             'threshold': {
-                'line': {'color': "white", 'width': 4},
-                'thickness': 0.75,
+                'line': {'color': "red", 'width': 6},  # 紅色粗線作為指針
+                'thickness': 0.85,
                 'value': value
             }
         }
