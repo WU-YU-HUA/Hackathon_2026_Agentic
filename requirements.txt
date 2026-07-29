@@ -5,3 +5,4 @@ ta
 streamlit
 plotly
 numpy
+google-genai
