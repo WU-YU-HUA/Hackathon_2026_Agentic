@@ -33,13 +33,15 @@ def render_sidebar():
             index=0
         )
         
-        gemini_key = os.getenv("GEMINI_API_KEY", "")
         if "雲端模型" in model_provider:
             gemini_key = st.text_input(
                 "Gemini API Key", 
+                value=os.getenv("GEMINI_API_KEY", ""),  # 從環境變數載入預設值
                 type="password", 
                 help="請輸入 Google AI Studio API Key"
             )
+        else:
+            gemini_key = ""  # 地端模型不需要 API Key
         
         st.divider()
 
