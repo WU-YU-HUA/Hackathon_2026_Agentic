@@ -68,6 +68,9 @@ class FearGreedData:
             print(f"[FearGreedData Error] 資料解析失敗: {e}")
             return {"error": str(e)}
 
+def fetch_fear_and_greed(limit: int=1):
+    fg = FearGreedData(limit=limit)
+    return fg.get_raw_data()
 
 # ==========================================
 # 獨立測試執行區塊
