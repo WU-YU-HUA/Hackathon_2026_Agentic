@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # 添加專案根目錄到 Python 路徑
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from maxAPI import MaxQueryAPI, MaxTradeAPI
+from api.maxAPI import MaxQueryAPI, MaxTradeAPI
 
 # 載入環境變數
 load_dotenv()
