@@ -1,4 +1,7 @@
 import streamlit as st
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 def init_session_state():
     """初始化所有全局 Session State 變數"""
@@ -20,17 +23,68 @@ def init_session_state():
         st.session_state.positions = {}  # {symbol: {amount, avg_price}}
 
 def render_sidebar():
-    """渲染側邊欄並返回分析工具設定"""
+    """渲染側邊欄並返回分析工具與模型設定"""
     with st.sidebar:
-        st.title("分析工具開關")
-        enable_bollinger = st.checkbox("布林通道 (Bollinger Bands)", value=True)
-        enable_ma = st.checkbox("移動平均線 (Moving Averages)", value=True)
-        enable_sentiment = st.checkbox("社群情緒分析 (Social Sentiment)", value=True)
+        # === 1. Switch Button -> 地端模型 / 雲端模型 ===
+        st.subheader("1. 🤖 模型引擎設定")
+        model_provider = st.radio(
+            "選擇運算來源：",
+            ["地端模型 (Ollama)", "雲端模型 (Gemini 2.0 Flash)"],
+            index=0
+        )
+        
+        gemini_key = os.getenv("GEMINI_API_KEY", "")
+        if "雲端模型" in model_provider:
+            gemini_key = st.text_input(
+                "Gemini API Key", 
+                type="password", 
+                help="請輸入 Google AI Studio API Key"
+            )
         
         st.divider()
-        
+
+        # === 2. 情緒 Block ===
+        st.subheader("2. 👥 社群情緒")
+        enable_fear_greed = st.checkbox("恐懼貪婪指數", value=True)
+        enable_long_short = st.checkbox("多空投票比", value=True)
+
+        st.divider()
+
+        # === 3. 技術指標 Block ===
+        st.subheader("3. 📈 技術指標工具")
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            enable_bb = st.checkbox("布林通道", value=True)
+            enable_rsi = st.checkbox("RSI", value=True)
+        with col_t2:
+            enable_ma = st.checkbox("MA", value=True)
+            enable_ema = st.checkbox("EMA", value=True)
+
+        st.divider()
+
+        # === 4. 出入場判斷 Block ===
+        st.subheader("4. 🎯 出入場策略")
+        enable_bb_1h = st.checkbox("布林 1hr 策略", value=True)
+        enable_bb_6h = st.checkbox("布林 6hr 策略", value=False)
+
+        st.divider()
+
+    # 回傳結構化的設定字典
     return {
-        "bollinger": enable_bollinger,
-        "ma": enable_ma,
-        "sentiment": enable_sentiment
+        "model_provider": model_provider,
+        "gemini_api_key": gemini_key,
+        "sentiment_tools": {
+            "fear_greed": enable_fear_greed,
+            "long_short": enable_long_short,
+        },
+        "tech_tools": {
+            "bollinger": enable_bb,
+            "rsi": enable_rsi,
+            "ma": enable_ma,
+            "ema": enable_ema,
+        },
+        "strategy_tools": {
+            "bollinger_1h": enable_bb_1h,
+            "bollinger_6h": enable_bb_6h,
+        }
     }

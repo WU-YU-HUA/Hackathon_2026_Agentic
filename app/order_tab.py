@@ -55,8 +55,8 @@ def parse_symbol_from_pair(pair):
     return pair.replace("USDT", "").replace("usdt", "")
 
 def render_order_tab():
-    """渲染 Tab 2: 真實下單儀表板"""
-    st.header("📈 真實下單儀表板")
+    """渲染 Tab 2: 真單儀表板"""
+    st.header("📈 下單儀表板")
     
     # 初始化 API 客戶端
     query_client, trade_client = init_max_api()
@@ -84,7 +84,7 @@ def render_order_tab():
     # 顯示上次更新時間
     if st.session_state.last_balance_refresh > 0:
         time_diff = int(current_time - st.session_state.last_balance_refresh)
-        st.caption(f"📊 資產資料已更新 | 上次更新: {time_diff} 秒前 | 自動更新間隔: 60 秒")
+        st.caption(f"💰 資產資料已更新 | 上次更新: {time_diff} 秒前 | 自動更新間隔: 60 秒")
     
     # 手動刷新按鈕 (採用無快取強制刷新)
     col_refresh, col_space = st.columns([1, 5])
@@ -104,7 +104,7 @@ def render_order_tab():
     col_form, col_info = st.columns([3, 2])
     
     with col_form:
-        st.subheader("📝 下單表單")
+        st.subheader("📝 下單")
         
         pair_symbols = [parse_symbol_from_pair(pair) for pair in allowed_pairs]
         selected_symbol = st.selectbox(
@@ -270,7 +270,7 @@ def render_order_tab():
                 st.error(res["message"])
     
     with col_info:
-        st.subheader("📊 帳戶持倉數量")
+        st.subheader("💰 帳戶持倉數量")
         
         if hasattr(st.session_state, 'real_balances') and st.session_state.real_balances:
             balances = st.session_state.real_balances
@@ -280,7 +280,7 @@ def render_order_tab():
             
             st.divider()
             
-            st.write("**📦 各幣種持有數量：**")
+            st.write("**👛 各幣種持有數量：**")
             
             display_data = []
             for currency, amount in balances.items():
