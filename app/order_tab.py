@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import json
 import sys
+import time
 from dotenv import load_dotenv
 
 # 添加專案根目錄到 Python 路徑
@@ -29,6 +30,16 @@ def init_max_api():
     trade_client = MaxTradeAPI(access_key, secret_key)
     
     return query_client, trade_client
+
+def fetch_fresh_balance():
+    """【強制繞過快取】直接向 MAX API 抓取最新資產"""
+    access_key = os.getenv("MAX_ACCESS")
+    secret_key = os.getenv("MAX_SECRET")
+    if access_key and secret_key:
+        # 建立 cache_ttl=0 的無快取實例
+        fresh_query_client = MaxQueryAPI(access_key, secret_key, cache_ttl=0)
+        return fresh_query_client.get_all_balance()
+    return {}
 
 def get_allowed_pairs():
     """從 .env 讀取允許的交易對"""
@@ -65,7 +76,7 @@ def render_order_tab():
     if current_time - st.session_state.last_balance_refresh >= 60:
         with st.spinner("🔄 更新資產資料中..."):
             try:
-                st.session_state.real_balances = query_client.get_all_balance()
+                st.session_state.real_balances = fetch_fresh_balance()
                 st.session_state.last_balance_refresh = current_time
             except Exception as e:
                 st.error(f"❌ 更新資產失敗: {str(e)}")
@@ -75,15 +86,15 @@ def render_order_tab():
         time_diff = int(current_time - st.session_state.last_balance_refresh)
         st.caption(f"📊 資產資料已更新 | 上次更新: {time_diff} 秒前 | 自動更新間隔: 60 秒")
     
-    # 手動刷新按鈕
+    # 手動刷新按鈕 (採用無快取強制刷新)
     col_refresh, col_space = st.columns([1, 5])
     with col_refresh:
         if st.button("🔄 立即刷新", use_container_width=True):
-            with st.spinner("🔄 更新資產資料中..."):
+            with st.spinner("🔄 強制刷新最新資產中..."):
                 try:
-                    st.session_state.real_balances = query_client.get_all_balance()
-                    st.session_state.last_balance_refresh = current_time
-                    st.success("✅ 資產已更新")
+                    st.session_state.real_balances = fetch_fresh_balance()
+                    st.session_state.last_balance_refresh = datetime.now().timestamp()
+                    st.success("✅ 資產已即時更新")
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ 更新失敗: {str(e)}")
@@ -95,16 +106,13 @@ def render_order_tab():
     with col_form:
         st.subheader("📝 下單表單")
         
-        # 交易對選擇（只允許 .env 中配置的交易對）
         pair_symbols = [parse_symbol_from_pair(pair) for pair in allowed_pairs]
-        
         selected_symbol = st.selectbox(
             "交易幣種",
             pair_symbols,
             help=f"僅支援交易對: {', '.join(allowed_pairs)}"
         )
         
-        # 找到對應的完整交易對
         selected_pair = None
         for pair in allowed_pairs:
             if parse_symbol_from_pair(pair) == selected_symbol:
@@ -123,7 +131,6 @@ def render_order_tab():
         with col_type:
             order_type = st.radio("委託類型", ["市價 (Market)", "限價 (Limit)"], horizontal=True)
         
-        # 價格輸入（限價單才需要）
         if "限價" in order_type:
             order_price = st.number_input(
                 "委託價格 (USDT)",
@@ -136,57 +143,66 @@ def render_order_tab():
             order_price = 0.0
             st.info("💡 市價單將以當前市場最佳價格成交")
         
-        # 數量輸入
-        if "買進" in order_side:
-            # 買入時輸入 USDT 金額
-            order_amount_usdt = st.number_input(
-                f"買入金額 (USDT)",
-                min_value=1.0,
-                value=100.0,
-                step=10.0,
-                format="%.2f",
-                help="輸入想要購買的 USDT 金額"
-            )
-            
-            # 估算可購買的幣種數量
-            if order_price > 0:
-                estimated_amount = order_amount_usdt / order_price
-                st.info(f"💡 預估可買入約 {estimated_amount:.6f} {selected_symbol}")
-            
-            total_value = order_amount_usdt
+        # 切換買賣/幣種模式時重置輸入數值
+        current_mode_key = f"{selected_symbol}_{side_api}"
+        if st.session_state.get("last_trade_mode") != current_mode_key:
+            st.session_state.last_trade_mode = current_mode_key
+            st.session_state.trade_amount_input = 100.0 if side_api == "buy" else 0.01
+
+        # 取得目前可用的最大資產數值
+        balances = st.session_state.get('real_balances', {})
+        if side_api == "buy":
+            max_available = float(balances.get('usdt', 0.0))
         else:
-            # 賣出時輸入幣種數量
-            order_amount = st.number_input(
-                f"賣出數量 ({selected_symbol})",
-                min_value=0.0001,
-                value=0.01,
-                step=0.0001,
-                format="%.6f",
-                help=f"輸入想要賣出的 {selected_symbol} 數量"
-            )
-            
-            if order_price > 0:
-                total_value = order_price * order_amount
+            max_available = float(balances.get(selected_symbol.lower(), 0.0))
+
+        # 數量輸入區塊 (含 Max 按鈕)
+        col_amount_input, col_max_btn = st.columns([4, 1], vertical_alignment="bottom")
+        
+        with col_max_btn:
+            if st.button("Max", use_container_width=True, help=f"自動填入最大可用數量 ({max_available})"):
+                st.session_state.trade_amount_input = max_available
+                st.rerun()
+
+        with col_amount_input:
+            if "買進" in order_side:
+                order_amount_usdt = st.number_input(
+                    f"買入金額 (USDT)",
+                    min_value=0.0,
+                    step=10.0,
+                    format="%.4f",
+                    key="trade_amount_input",
+                    help="輸入想要購買的 USDT 金額"
+                )
+                if order_price > 0:
+                    estimated_amount = order_amount_usdt / order_price
+                    st.info(f"💡 預估可買入約 {estimated_amount:.6f} {selected_symbol}")
+                total_value = order_amount_usdt
             else:
-                total_value = 0.0
+                order_amount = st.number_input(
+                    f"賣出數量 ({selected_symbol})",
+                    min_value=0.0,
+                    step=0.0001,
+                    format="%.6f",
+                    key="trade_amount_input",
+                    help=f"輸入想要賣出的 {selected_symbol} 數量"
+                )
+                if order_price > 0:
+                    total_value = order_price * order_amount
+                else:
+                    total_value = 0.0
         
         if total_value > 0:
             st.metric("預估金額 (USDT)", f"${total_value:,.2f}")
         
-        # 下單按鈕
+        # 下單按鈕區塊
         col_submit, col_reset = st.columns(2)
         with col_submit:
             if st.button("🚀 確認下單", type="primary", use_container_width=True):
                 try:
                     with st.spinner("📡 提交訂單中..."):
-                        # 執行下單
                         if "限價" in order_type:
-                            # 限價單
-                            if "買進" in order_side:
-                                quantity = order_amount_usdt / order_price
-                            else:
-                                quantity = order_amount
-                            
+                            quantity = (order_amount_usdt / order_price) if "買進" in order_side else order_amount
                             result = trade_client.limit_order(
                                 symbol=selected_pair,
                                 side=side_api,
@@ -194,51 +210,71 @@ def render_order_tab():
                                 quantity=quantity
                             )
                         else:
-                            # 市價單
-                            if "買進" in order_side:
-                                # MAX API 市價買入需要用 USDT 金額
-                                quantity = order_amount_usdt
-                            else:
-                                # 市價賣出用幣種數量
-                                quantity = order_amount
-                            
+                            quantity = order_amount_usdt if "買進" in order_side else order_amount
                             result = trade_client.market_order(
                                 symbol=selected_pair,
                                 side=side_api,
                                 quantity=quantity
                             )
                         
-                        # 檢查回應
+                        # 判斷 API 回應結果
                         if 'error' in result:
-                            st.error(f"❌ 下單失敗: {result['error']}")
+                            error_msg = result['error']
+                            if isinstance(error_msg, dict):
+                                error_msg = error_msg.get('message', str(error_msg))
+                            st.session_state.order_result = {
+                                "status": "error",
+                                "message": f"❌ 下單失敗：{error_msg}"
+                            }
                         elif 'id' in result:
-                            st.success(f"✅ 下單成功！")
-                            st.json(result)
-                            st.balloons()
-                            
-                            # 刷新餘額
-                            st.session_state.real_balances = query_client.get_all_balance()
-                            st.session_state.last_balance_refresh = datetime.now().timestamp()
+                            st.session_state.order_result = {
+                                "status": "success",
+                                "message": f"✅ 下單成功！ (訂單 ID: {result['id']})"
+                            }
                         else:
-                            st.warning("⚠️ 訂單已提交，但回應格式異常")
-                            st.json(result)
-                        
+                            st.session_state.order_result = {
+                                "status": "error",
+                                "message": f"❌ 下單失敗：回應格式異常 ({result})"
+                            }
+
                 except Exception as e:
-                    st.error(f"❌ 下單失敗: {str(e)}")
-                    st.exception(e)
+                    st.session_state.order_result = {
+                        "status": "error",
+                        "message": f"❌ 下單失敗：{str(e)}"
+                    }
+
+                # ---------------- 【重點修復】：延遲 + 無快取強制刷新 ----------------
+                with st.spinner("⏳ 等待交易所撮合與結算資產..."):
+                    time.sleep(0.8)  # 給 MAX 交易所 0.8 秒完成資產轉移
+                    try:
+                        st.session_state.real_balances = fetch_fresh_balance() # 繞過 60s 快取
+                        st.session_state.last_balance_refresh = datetime.now().timestamp()
+                    except Exception as refresh_err:
+                        st.error(f"❌ 資產刷新失敗: {str(refresh_err)}")
+
+                st.rerun()
         
         with col_reset:
             if st.button("🔄 重置表單", use_container_width=True):
+                if "order_result" in st.session_state:
+                    del st.session_state.order_result
                 st.rerun()
+
+        # 顯示下單結果 Response
+        if "order_result" in st.session_state:
+            res = st.session_state.order_result
+            st.write("")
+            if res["status"] == "success":
+                st.success(res["message"])
+            else:
+                st.error(res["message"])
     
     with col_info:
         st.subheader("📊 帳戶持倉數量")
         
-        # 顯示所有資產
         if hasattr(st.session_state, 'real_balances') and st.session_state.real_balances:
             balances = st.session_state.real_balances
             
-            # 獨立顯示 USDT 餘額
             usdt_balance = balances.get('usdt', 0.0)
             st.metric("💵 可用 USDT", f"{usdt_balance:,.4f}")
             
@@ -246,7 +282,6 @@ def render_order_tab():
             
             st.write("**📦 各幣種持有數量：**")
             
-            # 整理數量大於 0 的幣種成表格顯示
             display_data = []
             for currency, amount in balances.items():
                 if currency != 'usdt' and amount > 0:
@@ -257,16 +292,14 @@ def render_order_tab():
             
             if display_data:
                 df_balances = pd.DataFrame(display_data)
-                # 隱藏 index 並撐滿寬度顯示
                 st.dataframe(df_balances, hide_index=True, use_container_width=True)
             else:
                 st.info("目前無其他持倉")
                 
         else:
             st.info("⏳ 載入資產資料中...")
-            # 首次載入
             try:
-                st.session_state.real_balances = query_client.get_all_balance()
+                st.session_state.real_balances = fetch_fresh_balance()
                 st.session_state.last_balance_refresh = datetime.now().timestamp()
                 st.rerun()
             except Exception as e:
@@ -274,7 +307,6 @@ def render_order_tab():
     
     st.divider()
     
-    # 顯示支援的交易對
     st.subheader("ℹ️ 系統資訊")
     col_info1, col_info2 = st.columns(2)
     with col_info1:
