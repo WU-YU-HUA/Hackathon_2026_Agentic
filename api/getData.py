@@ -235,7 +235,6 @@ class CryptoData:
 def fetch_technical_data(
     symbol: str, 
     interval: str = "1h", 
-    period: int = 30, 
     boll_window: int = 20, 
     boll_dev: int = 2, 
     rsi_window: int = 14):
@@ -263,7 +262,7 @@ def fetch_technical_data(
     return crypto_data.get_technical_data(
         symbol=query_symbol,
         interval=interval,
-        period=period,
+        period=100,
         boll_window=boll_window,
         boll_dev=boll_dev,
         rsi_window=rsi_window

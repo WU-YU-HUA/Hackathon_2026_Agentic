@@ -67,7 +67,7 @@ def render_sidebar():
         # === 4. 出入場判斷 Block ===
         st.subheader("4. 🎯 出入場策略")
         enable_bb_1h = st.checkbox("布林 1hr 策略", value=True)
-        enable_bb_6h = st.checkbox("布林 6hr 策略", value=False)
+        enable_bb_6h = st.checkbox("布林 6hr 策略", value=True)
 
         st.divider()
 

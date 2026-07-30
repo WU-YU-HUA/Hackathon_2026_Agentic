@@ -7,7 +7,7 @@ TOOL_MAP = {
     "get_fear_and_greed": fetch_fear_and_greed, #恐懼貪婪指數
     "get_technical_data": fetch_technical_data, #技術指標
     "get_allowed_symbol": get_allowed_pairs, #可查詢之交易對
-    "get_vote": coinGeckoVote
+    "get_social_sentiment": coinGeckoVote
 }
 
 TOOLS_SCHEMA = [
@@ -42,11 +42,7 @@ TOOLS_SCHEMA = [
                     },
                     "interval": {
                         "type": "string",
-                        "description": "K線週期，支援 '1m','5m','15m','30m','1h','2h','4h','6h','12h','1d','1w'。預設 '1h'。"
-                    },
-                    "period": {
-                        "type": "integer",
-                        "description": "抓取過去幾天的歷史資料來計算指標，預設 30 天。"
+                        "description": "K線週期，支援 '1m','5m','15m','30m','1h','2h','4h','6h','12h','1d'。預設 '1h'。"
                     },
                     "boll_window": {
                         "type": "integer",
