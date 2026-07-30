@@ -5,95 +5,132 @@ from app.components.charts import create_gauge_chart, create_candlestick_chart
 from api.getData import CryptoData
 
 def render_dashboard(analysis_result):
-    """渲染儀表板整體數據卡片與圖表"""
+    """渲染儀表板整體數據卡片與圖表 (支援動態開關設定)"""
     st.divider()
-    st.subheader("📊 技術指標數據")
+    
+    # === 0. 讀取側邊欄設定檔 ===
+    tools_config = analysis_result.get("tools_config", {})
+    sentiment_config = tools_config.get("sentiment_tools", {})
+    tech_config = tools_config.get("tech_tools", {})
     
     tech_data = analysis_result.get('tech_data', {})
     fear_greed_data = analysis_result.get('fear_greed', {})
     social_data = analysis_result.get('social', {})
     
+    # ==========================================
     # === 1. 技術數據表格 (2x2 佈局) ===
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # 1-1. 移動平均線 (MA)
-        st.markdown("#### 移動平均線 (MA)")
-        ma_data = tech_data.get('ma', {})
-        if ma_data:
-            st.dataframe(pd.DataFrame({
-                '週期': ['MA 7', 'MA 25', 'MA 99'],
-                '數值': [
-                    f"${ma_data.get('ma_7', 0):,.2f}",
-                    f"${ma_data.get('ma_25', 0):,.2f}",
-                    f"${ma_data.get('ma_99', 0):,.2f}"
-                ]
-            }), hide_index=True, use_container_width=True)
-        else:
-            st.info("無 MA 數據")
+    # ==========================================
+    # 只要有勾選任何技術指標才顯示這個區塊
+    if any(tech_config.values()):
+        st.subheader("📊 技術指標數據")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # 1-1. 移動平均線 (MA)
+            if tech_config.get("ma"):
+                st.markdown("#### 移動平均線 (MA)")
+                ma_data = tech_data.get('ma', {})
+                if ma_data:
+                    st.dataframe(pd.DataFrame({
+                        '週期': ['MA 7', 'MA 25', 'MA 99'],
+                        '數值': [
+                            f"${ma_data.get('ma_7', 0):,.2f}",
+                            f"${ma_data.get('ma_25', 0):,.2f}",
+                            f"${ma_data.get('ma_99', 0):,.2f}"
+                        ]
+                    }), hide_index=True, use_container_width=True)
+                else:
+                    st.info("無 MA 數據")
+                
+            # 1-2. 指數移動平均線 (EMA)
+            if tech_config.get("ema"):
+                st.markdown("#### 指數移動平均線 (EMA)")
+                ema_data = tech_data.get('ema', {})
+                if ema_data:
+                    st.dataframe(pd.DataFrame({
+                        '週期': ['EMA 7', 'EMA 25', 'EMA 99'],
+                        '數值': [
+                            f"${ema_data.get('ema_7', 0):,.2f}",
+                            f"${ema_data.get('ema_25', 0):,.2f}",
+                            f"${ema_data.get('ema_99', 0):,.2f}"
+                        ]
+                    }), hide_index=True, use_container_width=True)
+                else:
+                    st.info("無 EMA 數據")
+                
+        with col2:
+            # 2-1. 布林通道 (Bollinger Bands)
+            if tech_config.get("bollinger"):
+                st.markdown("#### 布林通道 (Bollinger Bands)")
+                bb_data = tech_data.get('bollinger_bands', {})
+                if bb_data:
+                    st.dataframe(pd.DataFrame({
+                        '指標': ['上軌', '中軌', '下軌'],
+                        '數值': [
+                            f"${bb_data.get('upper', 0):,.2f}",
+                            f"${bb_data.get('middle', 0):,.2f}",
+                            f"${bb_data.get('lower', 0):,.2f}"
+                        ]
+                    }), hide_index=True, use_container_width=True)
+                    st.caption(f"視窗: {bb_data.get('window', 20)} | 標準差倍數: {bb_data.get('dev', 2)}")
+                else:
+                    st.info("無布林通道數據")
+
+            # 2-2. 其他指標 (動態組合)
+            st.markdown("#### 綜合數據")
+            # 預設一定有價格和時間範圍
+            indicators_labels = ['當前價格']
+            indicators_values = [f"${tech_data.get('price', 0):,.2f}"]
             
-        # 1-2. 指數移動平均線 (EMA)
-        st.markdown("#### 指數移動平均線 (EMA)")
-        ema_data = tech_data.get('ema', {})
-        if ema_data:
+            # 如果有勾選 RSI，才把 RSI 塞進表格
+            if tech_config.get("rsi") and tech_data.get('rsi'):
+                indicators_labels.append('RSI')
+                indicators_values.append(f"{tech_data.get('rsi', {}).get('value', 0):.2f}")
+                
+            indicators_labels.append('時間範圍')
+            indicators_values.append(tech_data.get('interval', 'N/A'))
+
             st.dataframe(pd.DataFrame({
-                '週期': ['EMA 7', 'EMA 25', 'EMA 99'],
-                '數值': [
-                    f"${ema_data.get('ema_7', 0):,.2f}",
-                    f"${ema_data.get('ema_25', 0):,.2f}",
-                    f"${ema_data.get('ema_99', 0):,.2f}"
-                ]
+                '指標': indicators_labels,
+                '數值': indicators_values
             }), hide_index=True, use_container_width=True)
-        else:
-            st.info("無 EMA 數據")
-            
-    with col2:
-        # 2-1. 布林通道 (Bollinger Bands)
-        st.markdown("#### 布林通道 (Bollinger Bands)")
-        bb_data = tech_data.get('bollinger_bands', {})
-        if bb_data:
-            st.dataframe(pd.DataFrame({
-                '指標': ['上軌', '中軌', '下軌'],
-                '數值': [
-                    f"${bb_data.get('upper', 0):,.2f}",
-                    f"${bb_data.get('middle', 0):,.2f}",
-                    f"${bb_data.get('lower', 0):,.2f}"
-                ]
-            }), hide_index=True, use_container_width=True)
-            st.caption(f"視窗: {bb_data.get('window', 20)} | 標準差倍數: {bb_data.get('dev', 2)}")
-        else:
-            st.info("無布林通道數據")
 
-        # 2-2. 其他指標
-        st.markdown("#### 其他指標")
-        st.dataframe(pd.DataFrame({
-            '指標': ['當前價格', 'RSI', '時間範圍'],
-            '數值': [
-                f"${tech_data.get('price', 0):,.2f}",
-                f"{tech_data.get('rsi', {}).get('value', 0):.2f}",
-                tech_data.get('interval', 'N/A')
-            ]
-        }), hide_index=True, use_container_width=True)
+        st.divider()
 
-    st.divider()
-
-    # === 2. 半圓儀表盤群 ===
-    st.subheader("📊 市場情緒指標")
-    g1, g2, g3 = st.columns(3)
+    # ==========================================
+    # === 2. 半圓儀表盤群 (動態欄位排版) ===
+    # ==========================================
+    # 收集需要畫出來的儀表盤清單
+    active_gauges = []
     
-    with g1:
+    if sentiment_config.get("fear_greed") and fear_greed_data:
         fg_val = fear_greed_data.get('value', 50) if isinstance(fear_greed_data, dict) else 50
-        st.plotly_chart(create_gauge_chart(fg_val, "恐懼貪婪指數"), use_container_width=True)
-    with g2:
-        up_val = social_data.get('up', 50) if social_data else 50
-        st.plotly_chart(create_gauge_chart(up_val, "社群看多比例"), use_container_width=True)
-    with g3:
+        active_gauges.append((fg_val, "恐懼貪婪指數"))
+        
+    if sentiment_config.get("long_short") and social_data:
+        up_val = social_data.get('up', 50)
+        active_gauges.append((up_val, "社群看多比例"))
+        
+    if tech_config.get("rsi") and tech_data.get("rsi"):
         rsi_val = tech_data.get('rsi', {}).get('value', 50)
-        st.plotly_chart(create_gauge_chart(rsi_val, "RSI 指標"), use_container_width=True)
+        active_gauges.append((rsi_val, "RSI 指標"))
 
-    st.divider()
+    # 如果有任何儀表盤需要畫，才渲染這個區塊
+    if active_gauges:
+        st.subheader("📊 市場情緒指標")
 
-    # === 3. K 線圖 ===
+        # 動態切割欄位：如果有 2 個儀表盤，就完美切成兩半
+        cols = st.columns(len(active_gauges))
+        
+        for idx, (val, title) in enumerate(active_gauges):
+            with cols[idx]:
+                st.plotly_chart(create_gauge_chart(val, title), use_container_width=True)
+                
+        st.divider()
+
+    # ==========================================
+    # === 3. 核心 K 線圖 (這是不受限制的基礎圖表) ===
+    # ==========================================
     st.subheader("📈 互動式 K 線圖")
     try:
         crypto_data = CryptoData()

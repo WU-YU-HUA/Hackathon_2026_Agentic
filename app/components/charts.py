@@ -34,7 +34,7 @@ def create_gauge_chart(value, title, color_scheme="fear_greed"):
     
     fig.update_layout(
         height=250,
-        margin={'t': 40, 'b': 0, 'l': 20, 'r': 20},
+        margin={'t': 60, 'b': 0, 'l': 20, 'r': 20},
         paper_bgcolor="rgba(0,0,0,0)",
         font={'color': "white", 'family': "Arial"}
     )
