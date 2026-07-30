@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
 from ta.trend import SMAIndicator, EMAIndicator
-
+from app.components.onboarding import get_allowed_pairs
 load_dotenv()
 
 
@@ -232,6 +232,42 @@ class CryptoData:
             print(f"[CryptoData Error] 取得歷史 DataFrame 失敗: {str(e)}")
             return pd.DataFrame()
 
+def fetch_technical_data(
+    symbol: str, 
+    interval: str = "1h", 
+    period: int = 30, 
+    boll_window: int = 20, 
+    boll_dev: int = 2, 
+    rsi_window: int = 14):
+    """給 AI 呼叫技術指標的入口 (包含防呆限制)"""
+    
+    # 1. 取得允許的交易對清單，並【強制轉小寫】確保比對不會出錯
+    allowed_pairs = [pair.lower() for pair in get_allowed_pairs()]
+    
+    # 2. 格式化 AI 傳入的 symbol (防呆：如果 AI 只傳 'btc'，自動補上 'usdt')
+    query_symbol = symbol.lower()
+    if not query_symbol.endswith("usdt"):
+        query_symbol += "usdt"
+        
+    # 3. 檢查是否在允許清單內
+    if query_symbol not in allowed_pairs:
+        # 把清單轉回大寫顯示給 AI，讓 AI 回答給使用者時比較好看
+        display_pairs = ", ".join([p.upper() for p in allowed_pairs])
+        return {
+            "error": "Symbol not allowed",
+            "message": f"您查詢的幣種 '{symbol}' 不在系統允許的白名單內。目前系統僅支援分析以下交易對：{display_pairs}。請依照此清單重新回答使用者。"
+        }
+
+    # 4. 通過檢查，執行真正的資料抓取
+    crypto_data = CryptoData()
+    return crypto_data.get_technical_data(
+        symbol=query_symbol,
+        interval=interval,
+        period=period,
+        boll_window=boll_window,
+        boll_dev=boll_dev,
+        rsi_window=rsi_window
+    )
 # ==========================================
 # 獨立測試：模擬 AI Agent 呼叫三次不同設定的場景
 # ==========================================

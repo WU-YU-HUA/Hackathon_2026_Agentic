@@ -1,7 +1,13 @@
-from .fearGreed import fetch_fear_and_greed
+from api.fearGreed import fetch_fear_and_greed
+from api.getData import fetch_technical_data
+from app.components.onboarding import get_allowed_pairs
+from api.social import coinGeckoVote
 
 TOOL_MAP = {
-    "get_fear_and_greed": fetch_fear_and_greed
+    "get_fear_and_greed": fetch_fear_and_greed, #恐懼貪婪指數
+    "get_technical_data": fetch_technical_data, #技術指標
+    "get_allowed_symbol": get_allowed_pairs, #可查詢之交易對
+    "get_vote": coinGeckoVote
 }
 
 TOOLS_SCHEMA = [
@@ -19,6 +25,72 @@ TOOLS_SCHEMA = [
                     }
                 },
                 "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_technical_data",
+            "description": "取得指定加密貨幣的最新技術分析數據，包含價格、布林通道(Bollinger Bands)、RSI、MA 與 EMA 等指標。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "加密貨幣交易對名稱，例如 'btcusdt', 'ethusdt', 'xrpusdt'。必須包含 'usdt' 後綴。"
+                    },
+                    "interval": {
+                        "type": "string",
+                        "description": "K線週期，支援 '1m','5m','15m','30m','1h','2h','4h','6h','12h','1d','1w'。預設 '1h'。"
+                    },
+                    "period": {
+                        "type": "integer",
+                        "description": "抓取過去幾天的歷史資料來計算指標，預設 30 天。"
+                    },
+                    "boll_window": {
+                        "type": "integer",
+                        "description": "布林通道週期視窗，預設 20。"
+                    },
+                    "boll_dev": {
+                        "type": "integer",
+                        "description": "布林通道標準差倍數，預設 2。"
+                    },
+                    "rsi_window": {
+                        "type": "integer",
+                        "description": "RSI 計算視窗，預設 14。"
+                    }
+                },
+                "required": ["symbol"]  # 強制 AI 必須提供 symbol
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_allowed_symbol",  # 👈 必須與 TOOL_MAP 的 key 完美對應
+            "description": "取得系統目前支援/允許分析的加密貨幣交易對清單(白名單)。當使用者詢問「支援哪些幣種」、「可以分析什麼幣」或「有哪些幣可以選」時，呼叫此工具。",
+            "parameters": {
+                "type": "object",
+                "properties": {},  # 👈 因為不需要 AI 傳入參數，所以留空
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_social_sentiment",
+            "description": "取得指定加密貨幣在 CoinGecko 上的社群多空投票比例 (看多 vs 看空)。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "加密貨幣名稱或交易對，例如 'BTC', 'ETH' 或 'btcusdt'。"
+                    }
+                },
+                "required": ["symbol"]
             }
         }
     }

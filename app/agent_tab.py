@@ -60,7 +60,7 @@ def init_gemini_chat(api_key):
 # ==========================================
 def render_agent_tab(tools_config):
     """渲染自由對話 Agent 介面 (支援多重對話紀錄與正確的排版)"""
-    st.header("💬 AI Agent 自由探索區")
+    st.header("💬 AI Agent")
     
     # 取得 API Key
     api_key = tools_config.get("gemini_api_key") or os.getenv("GEMINI_API_KEY")
@@ -120,7 +120,7 @@ def render_agent_tab(tools_config):
             st.chat_message(msg["role"]).write(msg["content"])
 
     # 4. 處理使用者輸入
-    if user_input := st.chat_input("試著問：「幫我比較 BTC 和 ETH 今天的恐懼貪婪指數？」"):
+    if user_input := st.chat_input("問問 Crypto Chatbot"):
         
         # [加分體驗] 如果是新對話的第一次輸入，自動將對話重新命名為問題的前10個字
         if len(chat_history) == 0 and st.session_state.current_session_name.startswith("新對話"):
