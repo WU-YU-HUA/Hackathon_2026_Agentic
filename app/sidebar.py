@@ -29,7 +29,7 @@ def render_sidebar():
         st.subheader("1. 🤖 模型引擎設定")
         model_provider = st.radio(
             "選擇運算來源：",
-            ["地端模型 (Ollama)", "雲端模型 (Gemini 2.0 Flash)"],
+            ["雲端模型 (Gemini 2.0 Flash)", "地端模型 (Ollama)"],
             index=0
         )
         
