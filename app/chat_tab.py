@@ -7,6 +7,7 @@ from api.getData import CryptoData
 from api.fearGreed import FearGreedData
 from api.social import coinGeckoVote
 from api.symbol_mapping import get_coingecko_id
+from app.components.report_generator import generate_html_report, generate_ai_report_markdown
 
 def render_chat_tab(tools_config):
     st.header("🤖 AI 投資助手")
@@ -81,8 +82,21 @@ def render_chat_tab(tools_config):
             
             # 1. 判斷是否需要抓取技術指標 (只要有勾任何一個就抓)
             if any(tech_config.values()):
-                result_data["tech_data"] = CryptoData().get_technical_data(symbol=pair.lower(), interval="1h", period=100)
+                # 儀表板顯示用的主數據 (預設 1h)
+                primary_tech = CryptoData().get_technical_data(symbol=pair.lower(), interval="1h", period=100)
+                result_data["tech_data"] = primary_tech
                 
+                # 🌟 修改為 1h, 6h, 1d (提供給 AI 寫報告)
+                result_data["multi_timeframe"] = {
+                    "短期_1h": primary_tech,
+                    "中期_6h": CryptoData().get_technical_data(symbol=pair.lower(), interval="6h", period=100),
+                    "長期_1d": CryptoData().get_technical_data(symbol=pair.lower(), interval="1d", period=100)
+                }
+                
+                # 🚧 預留空間：未來把你寫好的布林通道策略結果塞在這裡
+                # result_data["custom_bb_strategy"] = your_custom_bb_function(pair)
+                result_data["custom_bb_strategy"] = None
+
             # 2. 判斷是否需要抓取恐懼貪婪指數
             if sentiment_config.get("fear_greed"):
                 result_data["fear_greed"] = FearGreedData(limit=1).get_raw_data()
@@ -96,9 +110,38 @@ def render_chat_tab(tools_config):
             st.session_state.show_dashboard = True
             st.rerun()
 
-    # ==========================================
-    # 渲染視覺化儀表板
-    # ==========================================
+# (在 render_dashboard 下方新增...)
+
     if st.session_state.show_dashboard and st.session_state.analysis_result:
-        # 將包含 tools_config 的資料包傳給 render_dashboard
+        # 1. 渲染你寫好的圖表
         render_dashboard(st.session_state.analysis_result)
+        
+        st.divider()
+        
+        # 2. 準備排版
+        col_title, col_btn = st.columns([3, 1])
+        with col_title:
+            st.subheader("📝 AI 綜合分析與投資建議")
+            
+        # 3. 呼叫我們封裝好的模組來生報告
+        if 'ai_report_md' not in st.session_state:
+            with st.spinner("🤖 AI 正在根據您的風險等級撰寫專屬報告..."):
+                api_key = tools_config.get("gemini_api_key")
+                # ✨ 超級乾淨，只有一行！
+                st.session_state.ai_report_md = generate_ai_report_markdown(st.session_state.analysis_result, api_key)
+        
+        # 4. 在畫面上顯示 AI 寫好的報告
+        st.markdown(st.session_state.ai_report_md)
+        
+        # 5. 生成 HTML 字串並放置下載按鈕
+        with col_btn:
+            html_string = generate_html_report(st.session_state.analysis_result, st.session_state.ai_report_md)
+            
+            st.download_button(
+                label="📥 下載 HTML 報告",
+                data=html_string.encode('utf-8'),
+                file_name=f"{st.session_state.analysis_result.get('symbol')}_投資報告.html",
+                mime="text/html",
+                use_container_width=True,
+                type="primary"
+            )

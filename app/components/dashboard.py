@@ -129,14 +129,53 @@ def render_dashboard(analysis_result):
         st.divider()
 
     # ==========================================
-    # === 3. 核心 K 線圖 (這是不受限制的基礎圖表) ===
+    # === 3. 多週期 K 線圖 (支援 1h, 6h, 1d) ===
     # ==========================================
-    st.subheader("📈 互動式 K 線圖")
+    st.subheader("📈 多週期互動式 K 線圖")
+    
+    # 建立三個分頁標籤
+    tab_1h, tab_6h, tab_1d = st.tabs(["短期 (1h線)", "中期 (6h線)", "長期 (日線)"])
+    
     try:
         crypto_data = CryptoData()
-        history_df = crypto_data.get_history_df(symbol=analysis_result['pair'].lower(), interval="1h", period=7)
-        if not history_df.empty:
-            fig = create_candlestick_chart(history_df, analysis_result['symbol'], analysis_result['risk_level'])
-            st.plotly_chart(fig, use_container_width=True)
+        symbol_lower = analysis_result['pair'].lower()
+        base_symbol = analysis_result['symbol']
+        risk = analysis_result['risk_level']
+        
+        with tab_1h:
+            # 1h 線看過去 7 天
+            df_1h = crypto_data.get_history_df(symbol=symbol_lower, interval="1h", period=7)
+            if not df_1h.empty:
+                st.plotly_chart(create_candlestick_chart(df_1h, base_symbol, risk), use_container_width=True)
+                
+        with tab_6h:
+            # 6h 線看過去 30 天
+            df_6h = crypto_data.get_history_df(symbol=symbol_lower, interval="6h", period=30)
+            if not df_6h.empty:
+                st.plotly_chart(create_candlestick_chart(df_6h, base_symbol, risk), use_container_width=True)
+                
+        with tab_1d:
+            # 1d 線看過去 90 天
+            df_1d = crypto_data.get_history_df(symbol=symbol_lower, interval="1d", period=90)
+            if not df_1d.empty:
+                st.plotly_chart(create_candlestick_chart(df_1d, base_symbol, risk), use_container_width=True)
+                
     except Exception as e:
         st.error(f"❌ 繪製 K 線圖失敗: {str(e)}")
+
+    st.divider()
+
+    # ==========================================
+    # === 4. 自訂進出場策略 (預留區塊) ===
+    # ==========================================
+    st.subheader("🎯 專屬量化策略：布林通道動態判定")
+    
+    # 這裡預留讀取你未來的策略結果
+    custom_strategy_result = analysis_result.get("custom_bb_strategy")
+    
+    if custom_strategy_result:
+        # 未來接上後，這裡可以漂亮地顯示買賣點與建議
+        st.json(custom_strategy_result) # 暫時用 json 顯示，之後可以改成漂亮的 metric 或 markdown
+    else:
+        # 目前尚未接上時的顯示畫面
+        st.info("🚧 這裡預留給您自訂的「布林通道出入場策略」。未來串接後，將在此顯示具體的買賣點與訊號。")
