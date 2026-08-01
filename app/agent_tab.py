@@ -91,7 +91,16 @@ def execute_function_call(function_name, function_args):
         try:
             args_dict = dict(function_args) if function_args else {}
             result = TOOL_MAP[function_name](**args_dict)
-            return result if isinstance(result, (dict, list)) else {"result": result}
+            
+            # ⚠️ 關鍵修復：Gemini SDK 要求 response 必須是 dict
+            if isinstance(result, dict):
+                return result
+            elif isinstance(result, list):
+                # 如果是新聞列表等 list 格式，統一用 dict 包起來
+                return {"result": result}
+            else:
+                return {"result": str(result)}
+                
         except Exception as e:
             return {"error": str(e)}
     return {"error": f"Unknown function: {function_name}"}
