@@ -3,8 +3,12 @@ import streamlit as st
 import json
 from app.components.onboarding import render_risk_selector, render_pair_selector
 from app.components.dashboard import render_dashboard
-from api.getData import fetch_technical_data  # 🌟 更新匯入
-from api.social import get_vote_feargreed       # 🌟 更新匯入
+from api.getData import fetch_technical_data 
+from api.social import get_vote_feargreed      
+from api.news import fetch_news
+from api.news_ai import invoke_analyzer
+from api.kline_ai import invoke_kline_analyzer
+from api.social_ai import invoke_social_analyzer
 from app.components.report_generator import generate_html_report, generate_ai_report_markdown
 
 def render_chat_tab(tools_config):
@@ -67,7 +71,7 @@ def render_chat_tab(tools_config):
 
             sentiment_config = tools_config.get("sentiment_tools", {})
             tech_config = tools_config.get("tech_tools", {})
-            
+            news_config = tools_config.get("news_tools", {})
             # 建立整合資料包
             result_data = {
                 "symbol": symbol, 
@@ -75,6 +79,9 @@ def render_chat_tab(tools_config):
                 "risk_level": st.session_state.risk_level,
                 "kline_response": {},
                 "social_fg_data": {},
+                "news_report": {},
+                "kline_report": {},
+                "social_report": {},
                 "tools_config": tools_config
             }
             
@@ -82,6 +89,10 @@ def render_chat_tab(tools_config):
             if any(tech_config.values()):
                 kline_res = fetch_technical_data("ChatTab Tech Fetch", {"symbol": symbol_param})
                 result_data["kline_response"] = kline_res
+                result_data["kline_report"] = invoke_kline_analyzer(
+                    symbol=symbol_param, 
+                    kline_data=kline_res.get("data", {})
+                )
 
             # 2. 抓取社群情緒與恐懼貪婪指數 (合併呼叫)
             if sentiment_config.get("fear_greed") or sentiment_config.get("long_short"):
@@ -89,6 +100,15 @@ def render_chat_tab(tools_config):
                 result_data["social_fg_data"] = social_fg_res
                 result_data["fear_greed"] = social_fg_res.get("fear_and_greed")
                 result_data["long_short"] = social_fg_res.get("community_sentiment")
+                result_data["social_report"] = invoke_social_analyzer(
+                    symbol=symbol,
+                    fear_and_greed=social_fg_res.get("fear_and_greed"),
+                    community_sentiment=social_fg_res.get("community_sentiment")
+                )
+
+            if news_config.get("news"):
+                news_data = fetch_news(symbol.lower())
+                result_data["news_report"] = invoke_analyzer(news_data, symbol.lower())
 
             # 儲存結果並準備渲染
             st.session_state.analysis_result = result_data
