@@ -28,14 +28,12 @@ def render_sidebar():
         # === 1. Switch Button -> 地端模型 / 雲端模型 ===
         gemini_key = os.getenv("GEMINI_API_KEY", "")
 
-        # === 2. 情緒 Block ===
-        st.subheader("👥 社群情緒")
-        enable_fear_greed = st.checkbox("恐懼貪婪指數", value=True)
-        enable_long_short = st.checkbox("多空投票比", value=True)
+        # === 新聞 Block ===
+        st.subheader("🗞️ 新聞媒體")
         enable_news = st.checkbox("新聞", value=True)
         st.divider()
 
-        # === 3. 技術指標 Block ===
+        # ===  技術指標 Block ===
         st.subheader("📈 技術指標工具")
         col_t1, col_t2 = st.columns(2)
         with col_t1:
@@ -44,22 +42,28 @@ def render_sidebar():
         with col_t2:
             enable_ma = st.checkbox("MA", value=True)
             enable_ema = st.checkbox("EMA", value=True)
-
         st.divider()
 
+        # ===  情緒 Block ===
+        st.subheader("👥 社群情緒")
+        enable_fear_greed = st.checkbox("恐懼貪婪指數", value=True)
+        enable_long_short = st.checkbox("多空投票比", value=True)
+        st.divider()
 
     # 回傳結構化的設定字典
     return {
         "gemini_api_key": gemini_key,
-        "sentiment_tools": {
-            "fear_greed": enable_fear_greed,
-            "long_short": enable_long_short,
-            "news": enable_news,
+        "news_tools": {
+            "news": enable_news
         },
         "tech_tools": {
             "bollinger": enable_bb,
             "rsi": enable_rsi,
             "ma": enable_ma,
             "ema": enable_ema,
+        },
+        "sentiment_tools": {
+            "fear_greed": enable_fear_greed,
+            "long_short": enable_long_short,
         }
     }
