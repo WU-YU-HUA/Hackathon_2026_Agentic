@@ -1,16 +1,20 @@
 import datetime
 import json
+import math
+import os
 import pandas as pd
 import requests
+from dotenv import load_dotenv
 from ta.momentum import RSIIndicator
 from ta.trend import EMAIndicator, SMAIndicator
 from ta.volatility import BollingerBands
 
+load_dotenv()
 
 
 def get_allowed_pairs():
     """取得系統允許的交易對白名單"""
-    max_pairs_str = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT"]
+    max_pairs_str = os.getenv("MAX_PAIRS", '["BTCUSDT", "ETHUSDT", "SOLUSDT"]')
     try:
         return json.loads(max_pairs_str)
     except Exception:
@@ -54,6 +58,7 @@ class CryptoData:
         stime = int(start.timestamp())
 
         try:
+            # 1. 抓取 K 線數據
             path = "/api/v3/k"
             url = self.base_url + path
             params = {
@@ -70,6 +75,7 @@ class CryptoData:
             if not klines:
                 return {"error": f"No K-line data returned for {symbol}"}
 
+            # 2. 轉為 DataFrame 並轉型
             df = pd.DataFrame(
                 klines,
                 columns=["timestamp", "open", "high", "low", "close", "volume"],
@@ -77,7 +83,7 @@ class CryptoData:
             numeric_cols = ["open", "high", "low", "close", "volume"]
             df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric)
 
-            # 計算布林通道
+            # 3. 計算布林通道
             boll = BollingerBands(
                 close=df["close"], window=boll_window, window_dev=boll_dev
             )
@@ -85,48 +91,39 @@ class CryptoData:
             df["bb_upper"] = round(boll.bollinger_hband(), 5)
             df["bb_lower"] = round(boll.bollinger_lband(), 5)
 
-            # 計算 RSI
+            # 4. 計算 RSI
             rsi = RSIIndicator(close=df["close"], window=rsi_window)
             df["rsi"] = round(rsi.rsi(), 2)
 
-            # 計算 MA (7, 25, 99)
+            # 5. 計算 MA (7, 25, 99)
             for p in [7, 25, 99]:
                 ma = SMAIndicator(close=df["close"], window=p)
                 df[f"ma_{p}"] = round(ma.sma_indicator(), 5)
 
-            # 計算 EMA (7, 25, 99)
+            # 6. 計算 EMA (7, 25, 99)
             for p in [7, 25, 99]:
                 ema = EMAIndicator(close=df["close"], window=p)
                 df[f"ema_{p}"] = round(ema.ema_indicator(), 5)
 
-            latest = df.iloc[-1]
+            # 💡 【核心修改區 1】：將整個 DataFrame 轉成 List of Dicts
+            records = df.to_dict(orient="records")
+
+            # 💡 【核心修改區 2】：處理前端/JSON 無法解析的 NaN 值 (替換成 None，轉成 JSON 會變 null)
+            for record in records:
+                for key, val in record.items():
+                    if isinstance(val, float) and math.isnan(val):
+                        record[key] = None
+
             timeframe_horizon = "short_term" if minutes < 360 else "long_term"
 
+            # 💡 【核心修改區 3】：回傳整串完整的歷史數據與指標
             return {
-                "metric_type": "Technical Analysis",
+                "metric_type": "Technical Analysis Full Series",
                 "symbol": symbol.upper(),
                 "interval": interval,
                 "timeframe_horizon": timeframe_horizon,
-                "price": latest["close"],
-                "bollinger_bands": {
-                    "window": boll_window,
-                    "dev": boll_dev,
-                    "upper": latest["bb_upper"],
-                    "middle": latest["bb_middle"],
-                    "lower": latest["bb_lower"],
-                },
-                "rsi": {"window": rsi_window, "value": latest["rsi"]},
-                "ma": {
-                    "ma_7": latest["ma_7"],
-                    "ma_25": latest["ma_25"],
-                    "ma_99": latest["ma_99"],
-                },
-                "ema": {
-                    "ema_7": latest["ema_7"],
-                    "ema_25": latest["ema_25"],
-                    "ema_99": latest["ema_99"],
-                },
-                "timestamp": int(latest["timestamp"]),
+                "total_records": len(records),
+                "data": records,  # 👈 包含了每一根 K 線的 open/high/low/close/volume + 完整指標
             }
 
         except Exception as e:
@@ -141,7 +138,7 @@ def fetch_technical_data(
     boll_dev: float = 2.0,
     rsi_window: int = 14,
 ):
-    """給 AI 呼叫技術指標的入口 (包含防呆限制)"""
+    """給 AI / 外部呼叫技術指標的入口"""
     allowed_pairs = [pair.lower() for pair in get_allowed_pairs()]
 
     query_symbol = symbol.lower()
@@ -171,29 +168,22 @@ def handler(event, context):
     try:
         params = {}
 
-        # 1. API Gateway GET (Query String)
         if event.get("queryStringParameters"):
             params = event["queryStringParameters"]
-
-        # 2. API Gateway POST (Body)
         elif event.get("body"):
             body = event["body"]
             if isinstance(body, str):
                 body = json.loads(body)
             params = body
-
-        # 3. 直接呼叫 Lambda
         else:
             params = event
 
-        # 解析參數與型態轉換 (預設值處理)
         symbol = params.get("symbol", "btcusdt")
         interval = params.get("interval", "1h")
         boll_window = int(params.get("boll_window", 20))
         boll_dev = float(params.get("boll_dev", 2.0))
         rsi_window = int(params.get("rsi_window", 14))
 
-        # 執行計算
         result = fetch_technical_data(
             symbol=symbol,
             interval=interval,

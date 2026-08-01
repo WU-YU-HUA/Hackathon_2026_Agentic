@@ -92,10 +92,7 @@ def render_chat_tab(tools_config):
                     "中期_6h": CryptoData().get_technical_data(symbol=pair.lower(), interval="6h", period=100),
                     "長期_1d": CryptoData().get_technical_data(symbol=pair.lower(), interval="1d", period=100)
                 }
-                
-                # 🚧 預留空間：未來把你寫好的布林通道策略結果塞在這裡
-                # result_data["custom_bb_strategy"] = your_custom_bb_function(pair)
-                result_data["custom_bb_strategy"] = None
+
 
             # 2. 判斷是否需要抓取恐懼貪婪指數
             if sentiment_config.get("fear_greed"):

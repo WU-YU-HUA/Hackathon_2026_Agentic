@@ -1,8 +1,6 @@
 import json
 import requests
 
-import requests
-
 # ==========================================
 # CoinGecko ID 對應表
 # ==========================================
