@@ -1,0 +1,28 @@
+services:
+  crypto-agent:
+    # 依當前目錄的 Dockerfile 建置映像
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: crypto-agent:latest
+    container_name: crypto-agent
+
+    # 對外開放 Streamlit 連接埠 (對齊 Dockerfile 的 EXPOSE 8501)
+    ports:
+      - "8501:8501"
+
+    # 從 .env 載入機密與設定 (GEMINI_API_KEY / MAX_ACCESS / MAX_SECRET / MAX_PAIRS)
+    # 注意：.env 不會被打包進映像，於執行階段注入
+    env_file:
+      - .env
+
+    # 健康檢查 (與 Dockerfile 的 HEALTHCHECK 一致，方便編排平台判斷服務狀態)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+    # 服務異常時自動重啟
+    restart: unless-stopped

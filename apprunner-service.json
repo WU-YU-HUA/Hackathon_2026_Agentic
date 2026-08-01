@@ -1,0 +1,37 @@
+{
+  "ServiceName": "crypto-agent",
+  "SourceConfiguration": {
+    "ImageRepository": {
+      "ImageIdentifier": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/crypto-agent:latest",
+      "ImageConfiguration": {
+        "Port": "8501",
+        "RuntimeEnvironmentSecrets": {
+          "GEMINI_API_KEY": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:crypto-agent/GEMINI_API_KEY",
+          "MAX_ACCESS": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:crypto-agent/MAX_ACCESS",
+          "MAX_SECRET": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:crypto-agent/MAX_SECRET"
+        },
+        "RuntimeEnvironmentVariables": {
+          "MAX_PAIRS": "[\"BTCUSDT\",\"ETHUSDT\",\"SOLUSDT\",\"BNBUSDT\",\"XRPUSDT\"]"
+        }
+      },
+      "ImageRepositoryType": "ECR"
+    },
+    "AutoDeploymentsEnabled": true,
+    "AuthenticationConfiguration": {
+      "AccessRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/AppRunnerECRAccessRole"
+    }
+  },
+  "InstanceConfiguration": {
+    "Cpu": "1024",
+    "Memory": "2048",
+    "InstanceRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/AppRunnerInstanceRole"
+  },
+  "HealthCheckConfiguration": {
+    "Protocol": "HTTP",
+    "Path": "/_stcore/health",
+    "Interval": 10,
+    "Timeout": 5,
+    "HealthyThreshold": 1,
+    "UnhealthyThreshold": 5
+  }
+}

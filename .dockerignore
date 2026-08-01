@@ -1,0 +1,42 @@
+# Python 快取
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+
+# 虛擬環境
+venv/
+.venv/
+env/
+
+# 環境變數與機密 (不要打包進映像，改用 AWS 環境變數 / Secrets Manager)
+.env
+
+# Git
+.git/
+.gitignore
+
+# 文件與測試腳本
+md/
+*.md
+list_models.py
+test_agent.py
+test_agent_simple.py
+models_output.txt
+
+# IDE / 系統檔案
+.vscode/
+.idea/
+.DS_Store
+.kiro/
+
+# 部署相關 (不需進入映像)
+deploy/
+deploy.ps1
+apprunner-service.json
+compose.yaml
+
+# 其他
+.files/
