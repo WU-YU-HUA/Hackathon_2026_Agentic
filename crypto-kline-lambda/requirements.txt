@@ -1,0 +1,5 @@
+numpy<2.0.0
+pandas>=2.0.0,<3.0.0
+requests
+python-dotenv
+ta

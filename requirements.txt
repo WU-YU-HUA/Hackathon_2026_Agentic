@@ -7,3 +7,4 @@ plotly
 numpy
 google-genai
 markdown
+boto3
