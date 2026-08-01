@@ -1,0 +1,21 @@
+{
+  "recommendation": "buy",
+  "confidence": 65,
+  "sentiment_regime": "恐懼",
+  "fng_trend": "持平偏弱，近期在25-30區間震盪築底",
+  "community_alignment": "社群偏多但指數偏空，出現明顯分歧",
+  "contrarian_signal": "Fear & Greed Index 連續7天處於恐懼區間（25-30），且最新一筆曾觸及25的極度恐懼邊緣，但社群看漲比例高達67.97%，顯示散戶信心與市場恐慌情緒出現背離，這種分歧往往是底部反轉的前兆訊號。",
+  "risk_factors": [
+    "Fear & Greed Index 若跌破25進入極度恐懼區間，可能引發進一步恐慌性拋售",
+    "社群看漲比例雖高，但若價格持續下跌，可能快速轉為看跌形成多殺多",
+    "指數連續7天維持恐懼狀態，顯示市場信心尚未真正恢復，底部確認仍需時間"
+  ],
+  "invalidation_level": "若 Fear & Greed Index 連續3天跌破20進入深度極度恐懼區間，或社群看漲比例跌破50%轉為看跌主導，則此買進判斷失效",
+  "summary": "目前 Fear & Greed Index 連續7天處於27附近的恐懼區間，區間平均27.7，顯示市場情緒持續低迷但已趨於穩定。然而社群看漲比例高達67.97%，與恐懼指數形成明顯背離，這種「指數恐懼、散戶樂觀」的分歧格局，從反向指標角度來看，往往暗示市場可能已接近階段性底部。建議可分批小量買進，但需嚴格控制倉位，因恐懼情緒尚未完全消退，仍存在二次探底風險。待指數回升至40以上中性區間時，可考慮加碼。",
+  "metadata": {
+    "model": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+    "symbol": "BTC",
+    "fng_points_analyzed": 7,
+    "has_community_sentiment": true
+  }
+}
