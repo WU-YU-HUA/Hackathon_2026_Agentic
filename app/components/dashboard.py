@@ -87,7 +87,7 @@ def render_kline_report_ui(data):
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
         st.markdown(f"### 綜合操作建議：:{rec_color}[{rec_text}]")
-        st.caption(f"時區對齊狀態：{data.get('timeframe_alignment', '')}")
+        st.caption(f"週期對齊狀態：{data.get('timeframe_alignment', '')}")
     with col2:
         st.metric("模型信心度", f"{data.get('confidence', 0)}%")
     with col3:
@@ -100,7 +100,7 @@ def render_kline_report_ui(data):
     # 4-2. 各週期詳細分析表格
     per_tf = data.get("per_timeframe_analysis", [])
     if per_tf:
-        st.markdown("#### ⏱️ 各時區詳細訊號")
+        st.markdown("#### ⏱️ 各週期詳細訊號")
         tf_df = pd.DataFrame([
             {
                 "週期": item.get("interval"),
@@ -193,12 +193,12 @@ def render_dashboard(analysis_result):
     # 2. 📊 技術 Chart (數據表格)
     # ==========================================
     if any(tech_config.values()):
-        st.subheader("📊 技術指標最新數據 (最後一筆 K 棒)")
+        st.subheader("📊 技術指標最新數據")
         col1, col2 = st.columns(2)
         
         with col1:
             if tech_config.get("ma"):
-                st.markdown("#### 移動平均線 (MA - 1h最新)")
+                st.markdown("#### 移動平均線 (MA - 1h)")
                 st.dataframe(pd.DataFrame({
                     '週期': ['MA 7', 'MA 25', 'MA 99'],
                     '數值': [
@@ -209,7 +209,7 @@ def render_dashboard(analysis_result):
                 }), hide_index=True, use_container_width=True)
                 
             if tech_config.get("ema"):
-                st.markdown("#### 指數移動平均線 (EMA - 1h最新)")
+                st.markdown("#### 指數移動平均線 (EMA - 1h)")
                 st.dataframe(pd.DataFrame({
                     '週期': ['EMA 7', 'EMA 25', 'EMA 99'],
                     '數值': [
@@ -221,7 +221,7 @@ def render_dashboard(analysis_result):
                 
         with col2:
             if tech_config.get("bollinger"):
-                st.markdown("#### 布林通道 (Bollinger Bands - 1h最新)")
+                st.markdown("#### 布林通道 (Bollinger Bands - 1h)")
                 bb_upper = main_last.get('upper', main_last.get('bb_upper', 0))
                 bb_middle = main_last.get('middle', main_last.get('bb_middle', 0))
                 bb_lower = main_last.get('lower', main_last.get('bb_lower', 0))
@@ -231,7 +231,7 @@ def render_dashboard(analysis_result):
                     '數值': [f"${bb_upper:,.2f}", f"${bb_middle:,.2f}", f"${bb_lower:,.2f}"]
                 }), hide_index=True, use_container_width=True)
 
-            st.markdown("#### 跨週期最新數據快照")
+            st.markdown("#### 各週期最新RSI")
             snap_data = {
                 '週期': ['15m', '1h', '6h', '1d'],
                 '最新收盤價': [
@@ -265,28 +265,28 @@ def render_dashboard(analysis_result):
             risk = analysis_result.get('risk_level', '低')
 
             with tab_15m:
-                df_15m = pd.DataFrame(kline_data.get("15m_data", [])[-100:])
+                df_15m = pd.DataFrame(kline_data.get("15m_data", [])[-50:])
                 if not df_15m.empty:
                     st.plotly_chart(create_candlestick_chart(df_15m, base_symbol, risk), use_container_width=True)
                 else:
                     st.info("無 15m K 線數據")
 
             with tab_1h:
-                df_1h = pd.DataFrame(kline_data.get("1h_data", [])[-100:])
+                df_1h = pd.DataFrame(kline_data.get("1h_data", [])[-50:])
                 if not df_1h.empty:
                     st.plotly_chart(create_candlestick_chart(df_1h, base_symbol, risk), use_container_width=True)
                 else:
                     st.info("無 1h K 線數據")
                     
             with tab_6h:
-                df_6h = pd.DataFrame(kline_data.get("6h_data", [])[-100:])
+                df_6h = pd.DataFrame(kline_data.get("6h_data", [])[-50:])
                 if not df_6h.empty:
                     st.plotly_chart(create_candlestick_chart(df_6h, base_symbol, risk), use_container_width=True)
                 else:
                     st.info("無 6h K 線數據")
                     
             with tab_1d:
-                df_1d = pd.DataFrame(kline_data.get("1d_data", [])[-100:])
+                df_1d = pd.DataFrame(kline_data.get("1d_data", [])[-50:])
                 if not df_1d.empty:
                     st.plotly_chart(create_candlestick_chart(df_1d, base_symbol, risk), use_container_width=True)
                 else:
@@ -302,7 +302,7 @@ def render_dashboard(analysis_result):
     # ==========================================
     kline_report = analysis_result.get("kline_report")
     if any(tech_config.values()) and kline_report:
-        st.subheader("🤖 K 線與技術面分析報告")
+        st.subheader("📈 技術分析報告")
         render_kline_report_ui(kline_report)
         st.divider()
 

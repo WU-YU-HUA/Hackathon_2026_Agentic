@@ -1,6 +1,5 @@
 import boto3
 import json
-from getData import fetch_technical_data
 
 # 初始化 Lambda Client (請確保 Region 與部署區一致)
 lambda_client = boto3.client('lambda', region_name='us-west-2')
@@ -61,6 +60,7 @@ def invoke_kline_analyzer(symbol, kline_data):
 # 🧪 測試執行入口
 # ==========================================
 if __name__ == "__main__":
+    from getData import fetch_technical_data
     TEST_SYMBOL = "BTCUSDT"
     
     print("=" * 50)

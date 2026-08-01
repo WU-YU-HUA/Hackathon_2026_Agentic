@@ -1,6 +1,5 @@
 import boto3
 import json
-from social import get_vote_feargreed
 
 lambda_client = boto3.client('lambda', region_name='us-west-2')
 
@@ -63,6 +62,7 @@ def invoke_social_analyzer(symbol, fear_and_greed, community_sentiment):
 # 🧪 測試執行入口
 # ==========================================
 if __name__ == "__main__":
+    from social import get_vote_feargreed
     TEST_SYMBOL = "BTC"
 
     print("=" * 50)
