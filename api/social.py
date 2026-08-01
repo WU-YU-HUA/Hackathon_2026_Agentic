@@ -1,66 +1,79 @@
 import json
-import requests
+import boto3
+from botocore.exceptions import ClientError
 
-# ==========================================
-# CoinGecko ID 對應表
-# ==========================================
-COINGECKO_MAPPING = {
-    "btc": "bitcoin",
-    "btcusdt": "bitcoin",
-    "eth": "ethereum",
-    "ethusdt": "ethereum",
-    "sol": "solana",
-    "solusdt": "solana",
-    "doge": "dogecoin",
-    "dogeusdt": "dogecoin",
-    "xrp": "ripple",
-    "xrpusdt": "ripple"
-    # 若未來有新增幣種，直接加在這裡即可
-}
+# ==================== 設定區 ====================
+# 請替換為你在 AWS Console 上的 Lambda 函數名稱
+LAMBDA_FUNCTION_NAME = "crypto-social"
+AWS_REGION = "us-west-2"
+# ================================================
 
-def coinGeckoVote(symbol: str = "btc"):
-    """獲取該幣種的多空投票比，自動處理 symbol 到 CoinGecko ID 的轉換"""
-    
-    # 1. 轉小寫與清理
-    query_symbol = symbol.lower().strip()
-    
-    # 2. 嘗試從 Mapping 表找出對應的 CoinGecko ID
-    cg_id = COINGECKO_MAPPING.get(query_symbol)
-    
-    # 防呆：如果 AI 傳了帶有 usdt 的字串但 mapping 沒寫好，嘗試拔掉 usdt 再對應一次
-    if not cg_id and query_symbol.endswith("usdt"):
-        base_symbol = query_symbol.replace("usdt", "")
-        cg_id = COINGECKO_MAPPING.get(base_symbol)
 
-    # 3. 如果真的找不到，回傳友善錯誤訊息教導 AI
-    if not cg_id:
-        supported_list = ", ".join(set(COINGECKO_MAPPING.values()))
-        return {
-            "error": "Symbol mapping not found",
-            "message": f"無法取得 '{symbol}' 的社群情緒。目前社群情緒工具僅支援以下幣種：{supported_list}。請告知使用者暫不支援該幣種。"
-        }
+def invoke_lambda(test_name: str, payload: dict):
+    """呼叫 AWS Lambda 並解析結果"""
+    print(f"\n==========================================")
+    print(f"🚀 執行測試: {test_name}")
+    print(f"==========================================")
 
-    # 4. 成功找到 ID，呼叫真正的 API
+    # 初始化 AWS Lambda Client
+    client = boto3.client("lambda", region_name=AWS_REGION)
+
     try:
-        url = f"https://api.coingecko.com/api/v3/coins/{cg_id}"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()  # 檢查 HTTP 狀態碼
-        data = response.json()
-        
-        up = data.get("sentiment_votes_up_percentage", 0)
-        down = data.get("sentiment_votes_down_percentage", 0)
-        
-        return {
-            "symbol": query_symbol.upper(),
-            "coingecko_id": cg_id,
-            "up_percentage": up,
-            "down_percentage": down
-        }
-    except Exception as e:
-        return {"error": f"CoinGecko API 請求失敗: {str(e)}"}
+        # 呼叫遠端 Lambda
+        response = client.invoke(
+            FunctionName=LAMBDA_FUNCTION_NAME,
+            InvocationType="RequestResponse",  # 同步呼叫
+            Payload=json.dumps(payload),
+        )
 
+        # 讀取並解碼回傳 Payload
+        response_payload = json.loads(response["Payload"].read().decode("utf-8"))
+
+        # 檢查 Lambda 是否崩潰
+        if "FunctionError" in response:
+            print("❌ Lambda 執行發生未捕獲異常:")
+            print(json.dumps(response_payload, indent=2, ensure_ascii=False))
+            return
+
+        status_code = response_payload.get("statusCode")
+        body_str = response_payload.get("body", "{}")
+
+        print(f"📌 Status Code: {status_code}")
+
+        # 解析 Body
+        try:
+            body = json.loads(body_str) if isinstance(body_str, str) else body_str
+            print("📄 回傳內容 (Body):")
+            print(json.dumps(body, indent=2, ensure_ascii=False))
+        except json.JSONDecodeError:
+            print(f"📄 回傳原始內容: {body_str}")
+
+    except ClientError as e:
+        print(f"❌ AWS API 呼叫失敗: {e}")
+    except Exception as e:
+        print(f"❌ 發生錯誤: {e}")
 
 
 if __name__ == "__main__":
-    vote = coinGeckoVote("btc")
-    print(vote)
+    # 測試 1: 直接呼叫 (BTC, 當天恐懼貪婪指數 + 社群投票)
+    test_1 = {"symbol": "btc", "limit": 1}
+    invoke_lambda("1. 直接呼叫 - BTC 社群情緒與即時恐懼指數", test_1)
+
+    # 測試 2: 模擬 API Gateway GET (ETH, 抓取 3 天恐懼貪婪歷史)
+    test_2 = {
+        "queryStringParameters": {
+            "symbol": "eth",
+            "limit": "3"
+        }
+    }
+    invoke_lambda("2. 模擬 API Gateway GET - ETH (含 3 天歷史恐懼指數)", test_2)
+
+    # 測試 3: 模擬 API Gateway POST (SOL)
+    test_3 = {
+        "body": json.dumps({"symbol": "sol", "limit": 1})
+    }
+    invoke_lambda("3. 模擬 API Gateway POST - SOL", test_3)
+
+    # 測試 4: 防呆機制測試 (查詢不在映射表內的幣種)
+    test_4 = {"symbol": "pepe"}
+    invoke_lambda("4. 防呆機制測試 - 不支援的幣種 (PEPE)", test_4)
