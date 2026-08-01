@@ -1,0 +1,71 @@
+{
+  "overall_sentiment": {
+    "score": 42,
+    "label": "偏負面",
+    "confidence": 75
+  },
+  "news_breakdown": {
+    "total": 25,
+    "positive": 6,
+    "negative": 12,
+    "neutral": 7
+  },
+  "key_events": [
+    {
+      "title": "Coldcard Bitcoin loss estimate rises to $70M after Galaxy analysis",
+      "impact": "negative",
+      "importance": "high",
+      "summary": "Coldcard錢包安全事件損失估計升至7000萬美元，影響超過1000枚BTC，引發市場對硬體錢包安全性的擔憂。"
+    },
+    {
+      "title": "Bitcoin ETFs extend outflow streak as BTC fails to hold $65K",
+      "impact": "negative",
+      "importance": "high",
+      "summary": "比特幣ETF連續四日資金流出達5.26億美元，顯示機構投資者短期信心不足，價格未能守住65000美元關口。"
+    },
+    {
+      "title": "Bitcoin OG selling eases as dormant BTC movement hits 4-year low",
+      "impact": "positive",
+      "importance": "high",
+      "summary": "長期持有者拋售壓力減緩，休眠BTC移動量創四年新低，顯示老手已完成獲利了結，有利於價格穩定。"
+    },
+    {
+      "title": "Bitcoin lows pierce $63K as Asia chip-stock crash spreads to Wall Street",
+      "impact": "negative",
+      "importance": "medium",
+      "summary": "亞洲晶片股崩跌蔓延至華爾街，比特幣跌破63000美元，顯示加密市場與傳統風險資產高度連動。"
+    },
+    {
+      "title": "Bitcoin ETFs end July in the green despite late-month selling",
+      "impact": "positive",
+      "importance": "medium",
+      "summary": "儘管月末出現拋售，七月份比特幣ETF仍錄得1.724億美元淨流入，顯示整體月度表現仍為正向。"
+    }
+  ],
+  "market_impact": {
+    "short_term": "看跌",
+    "short_term_reasoning": "ETF連續資金流出、價格跌破關鍵支撐位64000-65000美元、亞洲股市動盪傳染效應、地緣政治風險（伊朗局勢）推升油價，以及聯準會利率決策不確定性，短期內市場承壓明顯。",
+    "medium_term": "中性",
+    "medium_term_reasoning": "長期持有者拋售壓力減緩為正面訊號，ETF七月整體仍為淨流入，不丹等主權機構持續佈局比特幣，但需關注日本央行政策可能引發的套利交易平倉風險及宏觀經濟不確定性。"
+  },
+  "risk_factors": [
+    "Coldcard錢包安全漏洞事件可能引發更廣泛的硬體錢包信任危機",
+    "日本央行政策變動可能重演2024年日圓套利交易平倉，衝擊加密市場",
+    "美國債券收益率上升增加聯準會升息預期，壓制風險資產表現",
+    "地緣政治緊張（美伊衝突）持續影響市場風險偏好",
+    "礦業公司Poolin破產顯示產業整合壓力加劇"
+  ],
+  "opportunities": [
+    "長期持有者拋售壓力降至四年低點，籌碼結構趨於穩定",
+    "主權機構（不丹）持續配置比特幣，增強機構採用敘事",
+    "量子計算防護路線圖若推出，可能成為重大利多催化劑",
+    "PCE通膨數據符合預期，降息預期仍存在支撐"
+  ],
+  "summary": "本週BTC新聞整體呈現偏負面情緒。主要利空包括：Coldcard錢包安全事件損失擴大至7000萬美元、ETF連續四日資金流出逾5億美元、價格跌破64000美元關鍵支撐，以及亞洲股市動盪傳染效應。宏觀面上，日本央行政策不確定性、美伊地緣衝突推升油價、美債收益率上升等因素持續壓制風險資產。然而，長期持有者拋售壓力創四年新低、七月ETF整體仍為淨流入、主權機構持續佈局等正面因素，為中期走勢提供一定支撐。短期建議謹慎，關注65000美元能否收復。",
+  "metadata": {
+    "model": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+    "tag": "BTC",
+    "news_count": 25,
+    "analyzed_count": 25
+  }
+}

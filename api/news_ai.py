@@ -54,7 +54,7 @@ def main():
         return
 
     response = invoke_analyzer(news_data, tag)
-    print(response)
+    print(json.dumps(response, indent=2, ensure_ascii=False))
     print("✅ 測試流程結束")
 
 
