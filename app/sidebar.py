@@ -47,12 +47,6 @@ def render_sidebar():
 
         st.divider()
 
-        # === 4. 出入場判斷 Block ===
-        st.subheader("🎯 出入場策略")
-        enable_bb_1h = st.checkbox("布林 1hr 策略", value=True)
-        enable_bb_6h = st.checkbox("布林 6hr 策略", value=True)
-
-        st.divider()
 
     # 回傳結構化的設定字典
     return {
@@ -67,9 +61,5 @@ def render_sidebar():
             "rsi": enable_rsi,
             "ma": enable_ma,
             "ema": enable_ema,
-        },
-        "strategy_tools": {
-            "bollinger_1h": enable_bb_1h,
-            "bollinger_6h": enable_bb_6h,
         }
     }

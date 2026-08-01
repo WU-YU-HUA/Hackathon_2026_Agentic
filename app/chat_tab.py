@@ -87,9 +87,9 @@ def render_chat_tab(tools_config):
             if sentiment_config.get("fear_greed") or sentiment_config.get("long_short"):
                 social_fg_res = get_vote_feargreed("ChatTab Social Fetch", {"symbol": symbol.lower(), "limit": 1})
                 result_data["social_fg_data"] = social_fg_res
-                result_data["fear_greed"] = social_fg_res.get("fear_greed")
-                result_data["social"] = social_fg_res.get("social")
-            
+                result_data["fear_greed"] = social_fg_res.get("fear_and_greed")
+                result_data["long_short"] = social_fg_res.get("community_sentiment")
+
             # 儲存結果並準備渲染
             st.session_state.analysis_result = result_data
             st.session_state.show_dashboard = True

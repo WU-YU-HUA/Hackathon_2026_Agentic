@@ -1,0 +1,86 @@
+{
+    "metric_type": "Technical Analysis Full Series (All Intervals)",
+    "symbol": "BTCUSDT",
+    "data": {
+        "15m_data": [
+            {
+                "timestamp": 1776934800,
+                "open": 77861.47,
+                "high": 77861.47,
+                "low": 77458.5,
+                "close": 77580.94,
+                "volume": 0.2436,
+                "bb_middle": null,
+                "bb_upper": null,
+                "bb_lower": null,
+                "rsi": null,
+                "ma_7": null,
+                "ma_25": null,
+                "ma_99": null,
+                "ema_7": null,
+                "ema_25": null,
+                "ema_99": null
+            }
+        ],
+        "1h_data": [
+            {
+                "timestamp": 1776934800,
+                "open": 77861.47,
+                "high": 77861.47,
+                "low": 77458.5,
+                "close": 77585.44,
+                "volume": 0.6383,
+                "bb_middle": null,
+                "bb_upper": null,
+                "bb_lower": null,
+                "rsi": null,
+                "ma_7": null,
+                "ma_25": null,
+                "ma_99": null,
+                "ema_7": null,
+                "ema_25": null,
+                "ema_99": null
+            }
+        ],
+        "6h_data": [
+            {
+                "timestamp": 1776945600,
+                "open": 77687.63,
+                "high": 79024.33,
+                "low": 76971.42,
+                "close": 77756.95,
+                "volume": 5.5112,
+                "bb_middle": null,
+                "bb_upper": null,
+                "bb_lower": null,
+                "rsi": null,
+                "ma_7": null,
+                "ma_25": null,
+                "ma_99": null,
+                "ema_7": null,
+                "ema_25": null,
+                "ema_99": null
+            }
+        ],
+        "1d_data": [
+            {
+                "timestamp": 1776988800,
+                "open": 78255.59,
+                "high": 78566.32,
+                "low": 77300.0,
+                "close": 77424.89,
+                "volume": 5.6287,
+                "bb_middle": null,
+                "bb_upper": null,
+                "bb_lower": null,
+                "rsi": null,
+                "ma_7": null,
+                "ma_25": null,
+                "ma_99": null,
+                "ema_7": null,
+                "ema_25": null,
+                "ema_99": null
+            }
+        ]
+    }
+}

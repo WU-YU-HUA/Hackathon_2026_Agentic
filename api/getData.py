@@ -41,4 +41,5 @@ def fetch_technical_data(test_name: str, payload: dict) -> dict:
 if __name__ == "__main__":
     test_1 = {"symbol": "BTCUSDT"}
     res = fetch_technical_data("1. 直接呼叫 - BTC 數據", test_1)
+
     print("回傳 Keys:", res.keys() if res else "無資料")

@@ -28,19 +28,19 @@ def render_dashboard(analysis_result):
         base_symbol = analysis_result.get('symbol', 'BTC').upper()
         symbol_param = base_symbol if base_symbol.endswith("USDT") else f"{base_symbol}USDT"
         kline_response = fetch_technical_data("Dashboard K-Line Fetch", {"symbol": symbol_param})
-
+    kline_data = kline_response.get('data')
     # 🌟 取得各週期 K 線 Data 的最後一筆資料 (即時數據)
-    last_15m = get_last_record(kline_response.get("15m_data", []))
-    last_1h  = get_last_record(kline_response.get("1h_data", []))
-    last_6h  = get_last_record(kline_response.get("6h_data", []))
-    last_1d  = get_last_record(kline_response.get("1d_data", []))
+    last_15m = get_last_record(kline_data.get("15m_data", []))
+    last_1h  = get_last_record(kline_data.get("1h_data", []))
+    last_6h  = get_last_record(kline_data.get("6h_data", []))
+    last_1d  = get_last_record(kline_data.get("1d_data", []))
 
     # 預設採用 1h 的最後一筆作為主要參考指標
     main_last = last_1h if last_1h else (last_15m or last_1d)
 
     raw_social_fg = analysis_result.get('social_fg_data', {})
     fear_greed_data = analysis_result.get('fear_greed') or raw_social_fg.get('fear_greed', {})
-    social_data = analysis_result.get('social') or raw_social_fg.get('social', {})
+    social_data = analysis_result.get('long_short') or raw_social_fg.get('long_short', {})
 
     # ==========================================
     # === 1. 技術數據表格 (根據最後一筆資料呈現) ===
@@ -154,7 +154,7 @@ def render_dashboard(analysis_result):
 
         # 15m
         with tab_15m:
-            df_15m = pd.DataFrame(kline_response.get("15m_data", []))
+            df_15m = pd.DataFrame(kline_data.get("15m_data", [])[-100:])
             if not df_15m.empty:
                 st.plotly_chart(create_candlestick_chart(df_15m, base_symbol, risk), use_container_width=True)
             else:
@@ -162,7 +162,7 @@ def render_dashboard(analysis_result):
 
         # 1h
         with tab_1h:
-            df_1h = pd.DataFrame(kline_response.get("1h_data", []))
+            df_1h = pd.DataFrame(kline_data.get("1h_data", [])[-100:])
             if not df_1h.empty:
                 st.plotly_chart(create_candlestick_chart(df_1h, base_symbol, risk), use_container_width=True)
             else:
@@ -170,7 +170,7 @@ def render_dashboard(analysis_result):
                 
         # 6h
         with tab_6h:
-            df_6h = pd.DataFrame(kline_response.get("6h_data", []))
+            df_6h = pd.DataFrame(kline_data.get("6h_data", [])[-100:])
             if not df_6h.empty:
                 st.plotly_chart(create_candlestick_chart(df_6h, base_symbol, risk), use_container_width=True)
             else:
@@ -178,7 +178,7 @@ def render_dashboard(analysis_result):
                 
         # 1d
         with tab_1d:
-            df_1d = pd.DataFrame(kline_response.get("1d_data", []))
+            df_1d = pd.DataFrame(kline_data.get("1d_data", [])[-100:])
             if not df_1d.empty:
                 st.plotly_chart(create_candlestick_chart(df_1d, base_symbol, risk), use_container_width=True)
             else:
@@ -188,14 +188,3 @@ def render_dashboard(analysis_result):
         st.error(f"❌ 繪製 K 線圖失敗: {str(e)}")
 
     st.divider()
-
-    # ==========================================
-    # === 4. 自訂進出場策略 ===
-    # ==========================================
-    st.subheader("🎯 專屬量化策略：布林通道動態判定")
-    custom_strategy_result = analysis_result.get("custom_bb_strategy")
-    
-    if custom_strategy_result:
-        st.json(custom_strategy_result)
-    else:
-        st.info("🚧 這裡預留給您自訂的「布林通道出入場策略」。未來串接後，將在此顯示具體的買賣點與訊號。")
