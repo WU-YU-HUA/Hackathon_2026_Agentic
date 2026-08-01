@@ -26,34 +26,17 @@ def render_sidebar():
     """渲染側邊欄並返回分析工具與模型設定"""
     with st.sidebar:
         # === 1. Switch Button -> 地端模型 / 雲端模型 ===
-        st.subheader("1. 🤖 模型引擎設定")
-        model_provider = st.radio(
-            "選擇運算來源：",
-            ["雲端模型 (Gemini 2.0 Flash)", "地端模型 (Ollama)"],
-            index=0
-        )
-        
-        if "雲端模型" in model_provider:
-            gemini_key = st.text_input(
-                "Gemini API Key", 
-                value=os.getenv("GEMINI_API_KEY", ""),  # 從環境變數載入預設值
-                type="password", 
-                help="請輸入 Google AI Studio API Key"
-            )
-        else:
-            gemini_key = ""  # 地端模型不需要 API Key
-        
-        st.divider()
+        gemini_key = os.getenv("GEMINI_API_KEY", "")
 
         # === 2. 情緒 Block ===
-        st.subheader("2. 👥 社群情緒")
+        st.subheader("👥 社群情緒")
         enable_fear_greed = st.checkbox("恐懼貪婪指數", value=True)
         enable_long_short = st.checkbox("多空投票比", value=True)
-
+        enable_news = st.checkbox("新聞", value=True)
         st.divider()
 
         # === 3. 技術指標 Block ===
-        st.subheader("3. 📈 技術指標工具")
+        st.subheader("📈 技術指標工具")
         col_t1, col_t2 = st.columns(2)
         with col_t1:
             enable_bb = st.checkbox("布林通道", value=True)
@@ -65,7 +48,7 @@ def render_sidebar():
         st.divider()
 
         # === 4. 出入場判斷 Block ===
-        st.subheader("4. 🎯 出入場策略")
+        st.subheader("🎯 出入場策略")
         enable_bb_1h = st.checkbox("布林 1hr 策略", value=True)
         enable_bb_6h = st.checkbox("布林 6hr 策略", value=True)
 
@@ -73,11 +56,11 @@ def render_sidebar():
 
     # 回傳結構化的設定字典
     return {
-        "model_provider": model_provider,
         "gemini_api_key": gemini_key,
         "sentiment_tools": {
             "fear_greed": enable_fear_greed,
             "long_short": enable_long_short,
+            "news": enable_news,
         },
         "tech_tools": {
             "bollinger": enable_bb,
