@@ -1,12 +1,10 @@
 # app/chat_tab.py
 import streamlit as st
-import json  # 👈 記得新增引入 json
+import json
 from app.components.onboarding import render_risk_selector, render_pair_selector
 from app.components.dashboard import render_dashboard
-from api.getData import CryptoData
-from api.fearGreed import FearGreedData
-from api.social import coinGeckoVote
-from api.symbol_mapping import get_coingecko_id
+from api.getData import fetch_technical_data  # 🌟 更新匯入
+from api.social import get_vote_feargreed       # 🌟 更新匯入
 from app.components.report_generator import generate_html_report, generate_ai_report_markdown
 
 def render_chat_tab(tools_config):
@@ -16,20 +14,17 @@ def render_chat_tab(tools_config):
     if 'risk_level' not in st.session_state: st.session_state.risk_level = None
     if 'selected_pair' not in st.session_state: st.session_state.selected_pair = None
     if 'show_dashboard' not in st.session_state: st.session_state.show_dashboard = False
+    if 'chat_history' not in st.session_state: st.session_state.chat_history = []
     
     # 記錄初始的側邊欄設定
     if 'chat_last_config' not in st.session_state: 
         st.session_state.chat_last_config = json.dumps(tools_config, sort_keys=True)
 
-    # ==========================================
-    # 🌟 新增：偵測側邊欄設定變更 (Smart Config Tracker)
-    # ==========================================
+    # 偵測側邊欄設定變更 (Smart Config Tracker)
     current_config_str = json.dumps(tools_config, sort_keys=True)
     if st.session_state.chat_last_config != current_config_str:
-        # 更新記憶
         st.session_state.chat_last_config = current_config_str
         
-        # 如果已經完成前兩題問答 (儀表板正在顯示)，則強制重新獲取資料
         if st.session_state.show_dashboard:
             st.session_state.show_dashboard = False
             st.toast("🔧 偵測到設定變更，正在為您重新獲取最新數據！", icon="✨")
@@ -51,6 +46,8 @@ def render_chat_tab(tools_config):
         st.session_state.risk_level = None
         st.session_state.selected_pair = None
         st.session_state.show_dashboard = False
+        if 'ai_report_md' in st.session_state:
+            del st.session_state.ai_report_md
         st.rerun()
 
     # 顯示對話紀錄
@@ -58,79 +55,65 @@ def render_chat_tab(tools_config):
         st.chat_message(chat["role"]).write(chat["content"])
 
     # ==========================================
-    # 🌟 數據獲取 (根據 sidebar 設定動態呼叫 API)
+    # 🌟 數據獲取 (使用最新整合的 Lambda 模組)
     # ==========================================
     if not st.session_state.show_dashboard and st.session_state.selected_pair:
         with st.spinner('正在獲取分析數據...'):
-            symbol = st.session_state.current_symbol
+            symbol = st.session_state.get("current_symbol", "BTC")
             pair = st.session_state.selected_pair
             
-            # 解析側邊欄的勾選狀態
+            # 格式化交易對名稱
+            symbol_param = pair.upper() if pair.upper().endswith("USDT") else f"{pair.upper()}USDT"
+
             sentiment_config = tools_config.get("sentiment_tools", {})
             tech_config = tools_config.get("tech_tools", {})
             
-            # 準備基礎資料包
+            # 建立整合資料包
             result_data = {
                 "symbol": symbol, 
                 "pair": pair, 
                 "risk_level": st.session_state.risk_level,
-                "tech_data": None,
-                "fear_greed": None,
-                "social": None,
-                "tools_config": tools_config  # 👈 把最新設定檔傳給 dashboard
+                "kline_response": {},
+                "social_fg_data": {},
+                "tools_config": tools_config
             }
             
-            # 1. 判斷是否需要抓取技術指標 (只要有勾任何一個就抓)
+            # 1. 抓取技術指標 (一次拿到 15m, 1h, 6h, 1d 數據)
             if any(tech_config.values()):
-                # 儀表板顯示用的主數據 (預設 1h)
-                primary_tech = CryptoData().get_technical_data(symbol=pair.lower(), interval="1h", period=100)
-                result_data["tech_data"] = primary_tech
-                
-                # 🌟 修改為 1h, 6h, 1d (提供給 AI 寫報告)
-                result_data["multi_timeframe"] = {
-                    "短期_1h": primary_tech,
-                    "中期_6h": CryptoData().get_technical_data(symbol=pair.lower(), interval="6h", period=100),
-                    "長期_1d": CryptoData().get_technical_data(symbol=pair.lower(), interval="1d", period=100)
-                }
+                kline_res = fetch_technical_data("ChatTab Tech Fetch", {"symbol": symbol_param})
+                result_data["kline_response"] = kline_res
 
-
-            # 2. 判斷是否需要抓取恐懼貪婪指數
-            if sentiment_config.get("fear_greed"):
-                result_data["fear_greed"] = FearGreedData(limit=1).get_raw_data()
-                
-            # 3. 判斷是否需要抓取多空投票比
-            if sentiment_config.get("long_short"):
-                result_data["social"] = coinGeckoVote(get_coingecko_id(symbol))
+            # 2. 抓取社群情緒與恐懼貪婪指數 (合併呼叫)
+            if sentiment_config.get("fear_greed") or sentiment_config.get("long_short"):
+                social_fg_res = get_vote_feargreed("ChatTab Social Fetch", {"symbol": symbol.lower(), "limit": 1})
+                result_data["social_fg_data"] = social_fg_res
+                result_data["fear_greed"] = social_fg_res.get("fear_greed")
+                result_data["social"] = social_fg_res.get("social")
             
             # 儲存結果並準備渲染
             st.session_state.analysis_result = result_data
             st.session_state.show_dashboard = True
             st.rerun()
 
-# (在 render_dashboard 下方新增...)
-
-    if st.session_state.show_dashboard and st.session_state.analysis_result:
-        # 1. 渲染你寫好的圖表
+    # ==========================================
+    # 🌟 渲染 Dashboard 與 AI 報告
+    # ==========================================
+    if st.session_state.show_dashboard and st.session_state.get("analysis_result"):
         render_dashboard(st.session_state.analysis_result)
         
         st.divider()
         
-        # 2. 準備排版
         col_title, col_btn = st.columns([3, 1])
         with col_title:
             st.subheader("📝 AI 綜合分析與投資建議")
             
-        # 3. 呼叫我們封裝好的模組來生報告
         if 'ai_report_md' not in st.session_state:
             with st.spinner("🤖 AI 正在根據您的風險等級撰寫專屬報告..."):
                 api_key = tools_config.get("gemini_api_key")
-                # ✨ 超級乾淨，只有一行！
                 st.session_state.ai_report_md = generate_ai_report_markdown(st.session_state.analysis_result, api_key)
         
-        # 4. 在畫面上顯示 AI 寫好的報告
         st.markdown(st.session_state.ai_report_md)
         
-        # 5. 生成 HTML 字串並放置下載按鈕
         with col_btn:
             html_string = generate_html_report(st.session_state.analysis_result, st.session_state.ai_report_md)
             

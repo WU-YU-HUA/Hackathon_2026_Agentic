@@ -8,3 +8,4 @@ numpy
 google-genai
 markdown
 boto3
+anthropic

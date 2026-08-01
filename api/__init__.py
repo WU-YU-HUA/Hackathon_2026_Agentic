@@ -1,23 +1,21 @@
-from api.fearGreed import fetch_fear_and_greed
+from api.social import get_vote_feargreed
 from api.getData import fetch_technical_data
 from app.components.onboarding import get_allowed_pairs
-from api.social import coinGeckoVote
-from api.news import fetch_crypto_news
+from api.news import fetch_news
 
 TOOL_MAP = {
-    "get_fear_and_greed": fetch_fear_and_greed, #恐懼貪婪指數
+    "get_vote_feargreed": get_vote_feargreed, #恐懼貪婪指數 + 多空投票比
     "get_technical_data": fetch_technical_data, #技術指標
     "get_allowed_symbol": get_allowed_pairs, #可查詢之交易對
-    "get_social_sentiment": coinGeckoVote, #社群多空投票
-    "get_crypto_news": fetch_crypto_news #加密貨幣新聞
+    "get_crypto_news": fetch_news #加密貨幣新聞
 }
 
 TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
-            "name": "get_fear_and_greed",
-            "description": "取得加密貨幣市場當前的恐懼貪婪指數(Crypto Fear & Greed Index)。數值為 0~100，0 代表極度恐懼，100 代表極度貪婪。",
+            "name": "get_vote_feargreed",
+            "description": "取得加密貨幣市場當前的多空投票比 以及 恐懼貪婪指數(Crypto Fear & Greed Index)。數值為 0~100，0 代表極度恐懼，100 代表極度貪婪。",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -72,23 +70,6 @@ TOOLS_SCHEMA = [
                 "type": "object",
                 "properties": {},  # 👈 因為不需要 AI 傳入參數，所以留空
                 "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_social_sentiment",
-            "description": "取得指定加密貨幣在 CoinGecko 上的社群多空投票比例 (看多 vs 看空)。",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "symbol": {
-                        "type": "string",
-                        "description": "加密貨幣名稱或交易對，例如 'BTC', 'ETH' 或 'btcusdt'。"
-                    }
-                },
-                "required": ["symbol"]
             }
         }
     },
