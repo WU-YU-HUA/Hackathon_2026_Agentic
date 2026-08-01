@@ -2,42 +2,42 @@
 import plotly.graph_objects as go
 import pandas as pd
 
-def create_gauge_chart(value, title, color_scheme="fear_greed"):
-    """創建半圓儀表盤"""
-    colors = ['#d32f2f', '#f57c00', '#ffc107', '#8bc34a', '#4caf50']
-    
+def create_gauge_chart(val, title):
+    """建立帶有數值與標題的半圓儀表盤圖表"""
     fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=value,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': title, 'font': {'size': 20, 'color': 'white'}},
-        number={'font': {'size': 40, 'color': 'white'}},
-        gauge={
-            'axis': {'range': [0, 100], 'tickwidth': 2, 'tickcolor': "white", 'dtick': 25},
-            'bar': {'color': "rgba(255, 255, 255, 0.8)", 'thickness': 0.15},
-            'bgcolor': "rgba(50, 50, 50, 0.3)",
-            'borderwidth': 3,
-            'bordercolor': "rgba(255, 255, 255, 0.5)",
+        mode = "gauge+number",  # 顯示半圓儀表盤 + 中央數字
+        value = float(val),
+        title = {
+            'text': f"<b>{title}</b>", 
+            'font': {'size': 16}  # 標題文字大小
+        },
+        number = {
+            'font': {'size': 24, 'weight': 'bold'},  # 中央數字大小
+            'valueformat': ".1f"  # 顯示小數點第一位
+        },
+        gauge = {
+            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+            'bar': {'color': "#d32f2f", 'thickness': 0.25},  # 🌟 修正：使用 thickness 代替 width
+            'bgcolor': "white",
+            'borderwidth': 1,
+            'bordercolor': "gray",
             'steps': [
-                {'range': [0, 25], 'color': colors[0]},
-                {'range': [25, 50], 'color': colors[1]},
-                {'range': [50, 75], 'color': colors[2]},
-                {'range': [75, 100], 'color': colors[3]},
+                {'range': [0, 25], 'color': '#d9383a'},   # 極度恐懼 / 看空
+                {'range': [25, 50], 'color': '#eb8f24'},  # 恐懼
+                {'range': [50, 75], 'color': '#f1c40f'},  # 貪婪
+                {'range': [75, 100], 'color': '#2ecc71'}  # 極度貪婪 / 看多
             ],
-            'threshold': {
-                'line': {'color': "red", 'width': 6},
-                'thickness': 0.85,
-                'value': value
-            }
         }
     ))
-    
+
+    # 調整圖表容器邊距與背景，確保文字呈現完整
     fig.update_layout(
-        height=250,
-        margin={'t': 60, 'b': 0, 'l': 20, 'r': 20},
+        height=190,
+        margin=dict(l=25, r=25, t=40, b=10),
         paper_bgcolor="rgba(0,0,0,0)",
-        font={'color': "white", 'family': "Arial"}
+        plot_bgcolor="rgba(0,0,0,0)"
     )
+
     return fig
 
 def create_candlestick_chart(history_df, symbol, risk_level):
