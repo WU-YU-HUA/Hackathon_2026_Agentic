@@ -58,22 +58,3 @@ if __name__ == "__main__":
     # 測試 1: 直接呼叫 (BTC, 當天恐懼貪婪指數 + 社群投票)
     test_1 = {"symbol": "btc", "limit": 1}
     invoke_lambda("1. 直接呼叫 - BTC 社群情緒與即時恐懼指數", test_1)
-
-    # 測試 2: 模擬 API Gateway GET (ETH, 抓取 3 天恐懼貪婪歷史)
-    test_2 = {
-        "queryStringParameters": {
-            "symbol": "eth",
-            "limit": "3"
-        }
-    }
-    invoke_lambda("2. 模擬 API Gateway GET - ETH (含 3 天歷史恐懼指數)", test_2)
-
-    # 測試 3: 模擬 API Gateway POST (SOL)
-    test_3 = {
-        "body": json.dumps({"symbol": "sol", "limit": 1})
-    }
-    invoke_lambda("3. 模擬 API Gateway POST - SOL", test_3)
-
-    # 測試 4: 防呆機制測試 (查詢不在映射表內的幣種)
-    test_4 = {"symbol": "pepe"}
-    invoke_lambda("4. 防呆機制測試 - 不支援的幣種 (PEPE)", test_4)

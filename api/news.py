@@ -57,6 +57,45 @@ def invoke_lambda(test_name: str, payload: dict):
         print(f"❌ 發生非預期錯誤: {e}")
 
 
+def fetch_news(tag: str):
+    """呼叫 crypto-news Lambda 並回傳新聞列表 (list)。
+
+    回傳:
+        list: 新聞資料列表 (body["news"])。
+        若失敗或無資料則回傳空 list []。
+    """
+    client = boto3.client("lambda", region_name=AWS_REGION)
+
+    try:
+        response = client.invoke(
+            FunctionName=LAMBDA_FUNCTION_NAME,
+            InvocationType="RequestResponse",  # 同步呼叫 (等待回傳)
+            Payload=json.dumps({"tag": tag}),
+        )
+
+        response_payload = json.loads(response["Payload"].read().decode("utf-8"))
+
+        if "FunctionError" in response:
+            print(f"❌ Lambda 執行發生未捕獲異常: {response_payload}")
+            return []
+
+        body_str = response_payload.get("body", "{}")
+        body = json.loads(body_str) if isinstance(body_str, str) else body_str
+
+        if isinstance(body, dict) and "error" in body:
+            print(f"❌ Lambda 回傳錯誤: {body['error']}")
+            return []
+
+        return body.get("news", []) if isinstance(body, dict) else []
+
+    except ClientError as e:
+        print(f"❌ AWS API 呼叫失敗: {e}")
+        return []
+    except Exception as e:
+        print(f"❌ 發生非預期錯誤: {e}")
+        return []
+
+
 if __name__ == "__main__":
     # 測試 1: 直接呼叫 (Direct Event)
     test_1_event = {"tag": "BTC"}
