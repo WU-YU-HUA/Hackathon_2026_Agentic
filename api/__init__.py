@@ -2,12 +2,14 @@ from api.fearGreed import fetch_fear_and_greed
 from api.getData import fetch_technical_data
 from app.components.onboarding import get_allowed_pairs
 from api.social import coinGeckoVote
+from api.news import fetch_crypto_news
 
 TOOL_MAP = {
     "get_fear_and_greed": fetch_fear_and_greed, #恐懼貪婪指數
     "get_technical_data": fetch_technical_data, #技術指標
     "get_allowed_symbol": get_allowed_pairs, #可查詢之交易對
-    "get_social_sentiment": coinGeckoVote
+    "get_social_sentiment": coinGeckoVote, #社群多空投票
+    "get_crypto_news": fetch_crypto_news #加密貨幣新聞
 }
 
 TOOLS_SCHEMA = [
@@ -87,6 +89,23 @@ TOOLS_SCHEMA = [
                     }
                 },
                 "required": ["symbol"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_crypto_news",
+            "description": "從 Cointelegraph 取得最新加密貨幣新聞。可指定主題 (tag) 做來源端搜尋，回傳該主題的相關新聞列表，每則含標題與摘要 (title, context)。當使用者想了解某幣種或市場的最新消息、新聞、動態時呼叫。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tag": {
+                        "type": "string",
+                        "description": "新聞主題標籤。支援幣種代號或交易對 (例如 'bitcoin', 'eth', 'BTCUSDT') 會自動轉換，也支援一般主題 (例如 'regulation', 'defi')。不傳則回傳綜合最新新聞。"
+                    }
+                },
+                "required": []
             }
         }
     }
