@@ -9,7 +9,7 @@ services:
 
     # 對外開放 Streamlit 連接埠 (對齊 Dockerfile 的 EXPOSE 8501)
     ports:
-      - "8501:8501"
+      - "80:8501"
 
     # 從 .env 載入機密與設定 (GEMINI_API_KEY / MAX_ACCESS / MAX_SECRET / MAX_PAIRS)
     # 注意：.env 不會被打包進映像，於執行階段注入
