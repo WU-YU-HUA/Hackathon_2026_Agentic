@@ -73,7 +73,7 @@ if __name__ == "__main__":
     print("\n[步驟 1/2] 正在從 api.social 獲取社群情緒數據...")
     social_data = get_vote_feargreed(
         test_name="測試獲取社群情緒與恐懼貪婪指數",
-        payload={"symbol": TEST_SYMBOL, "limit": 7}
+        payload={"symbol": TEST_SYMBOL, "limit": 1}
     )
 
     if not social_data:
@@ -83,7 +83,7 @@ if __name__ == "__main__":
 
         fear_and_greed = social_data.get("fear_and_greed", [])
         community_sentiment = social_data.get("community_sentiment", {})
-
+        print(fear_and_greed)
         # 📌 步驟 2: 傳給 AI Analyzer 進行分析
         print("\n[步驟 2/2] 正在將數據發送給 crypto-social-ai-analyzer...")
         try:

@@ -11,19 +11,26 @@ def get_dynamic_agent_config(tools_config):
     """根據 sidebar 的勾選狀態，動態過濾工具並產生系統提示"""
     enabled_sentiment = tools_config.get("sentiment_tools", {})
     enabled_tech = tools_config.get("tech_tools", {})
+    enabled_news = tools_config.get("news_tools", {})  # 🌟 取得新聞設定
     
     # 1. 過濾 TOOLS_SCHEMA
     filtered_schema = []
     allowed_api_names = ["get_allowed_symbol"]
     
-    if enabled_sentiment.get("fear_greed"):
-        allowed_api_names.append("get_fear_and_greed")
+    # 🌟 修正情緒工具名稱對應
+    if enabled_sentiment.get("fear_greed") or enabled_sentiment.get("long_short"):
+        allowed_api_names.append("get_vote_feargreed")
+        allowed_api_names.append("get_social_ai_analysis")
         
-    if enabled_sentiment.get("long_short"):
-        allowed_api_names.append("get_social_sentiment")
-        
+    # 🌟 修正技術工具名稱對應
     if any(enabled_tech.values()):
         allowed_api_names.append("get_technical_data")
+        allowed_api_names.append("get_kline_ai_analysis")
+
+    # 🌟 確保新聞工具加入白名單
+    if enabled_news.get("crypto_news", True):
+        allowed_api_names.append("get_crypto_news")
+        allowed_api_names.append("get_news_ai_analysis")
         
     for tool in TOOLS_SCHEMA:
         if tool["function"]["name"] in allowed_api_names:
@@ -37,11 +44,12 @@ def get_dynamic_agent_config(tools_config):
     if enabled_tech.get("rsi"): allowed_metrics_names.append("RSI")
     if enabled_tech.get("ma"): allowed_metrics_names.append("MA (移動平均線)")
     if enabled_tech.get("ema"): allowed_metrics_names.append("EMA")
+    if enabled_news.get("crypto_news", True): allowed_metrics_names.append("加密貨幣即時新聞與消息面 AI 分析")
     
     sys_instruct = (
         "你是一個專業的加密貨幣量化分析師。請善用工具來獲取即時數據。\n\n"
         "【⚠️ 最高指令限制】\n"
-        f"使用者目前在控制面板中，『僅允許』你使用與分析以下指標：{', '.join(allowed_metrics_names)}。\n"
+        f"使用者目前在控制面板中，『僅允許』你使用與分析以下指標與功能：{', '.join(allowed_metrics_names)}。\n"
         "即使你的 API 工具回傳了其他未經允許的數據，你都必須『假裝沒看到』，絕對不能在回答中主動提及未勾選的指標。"
         "若使用者直接詢問了未勾選的指標，請禮貌地提醒他：「您尚未在側邊欄開啟該指標功能，請開啟後再詢問」。"
     )
@@ -102,7 +110,7 @@ def render_agent_tab(tools_config):
         return
 
     # 設定模型 ID (依據 AWS Bedrock 實際可用的 Model ID 或 Inference Profile ID)
-    MODEL_ID = tools_config.get("bedrock_model_id", "us.anthropic.claude-3-5-sonnet-20241022-v2:0")
+    MODEL_ID = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
 
     # 2. 初始化多會話資料結構
     if "agent_sessions" not in st.session_state:

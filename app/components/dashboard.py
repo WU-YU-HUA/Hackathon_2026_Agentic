@@ -44,10 +44,10 @@ def render_news_report_ui(data):
     m_impact = data.get("market_impact", {})
     ic1, ic2 = st.columns(2)
     with ic1:
-        st.markdown(f"**短期趨勢：** `:red[{m_impact.get('short_term', '')}]`")
+        st.markdown(f"**短期趨勢：** `:🔴[{m_impact.get('short_term', '')}]`")
         st.caption(m_impact.get("short_term_reasoning", ""))
     with ic2:
-        st.markdown(f"**中期趨勢：** `:orange[{m_impact.get('medium_term', '')}]`")
+        st.markdown(f"**中期趨勢：** `:🟡[{m_impact.get('medium_term', '')}]`")
         st.caption(m_impact.get("medium_term_reasoning", ""))
 
     # 1-3. 關鍵新聞事件
@@ -89,7 +89,7 @@ def render_kline_report_ui(data):
         st.markdown(f"### 綜合操作建議：:{rec_color}[{rec_text}]")
         st.caption(f"週期對齊狀態：{data.get('timeframe_alignment', '')}")
     with col2:
-        st.metric("模型信心度", f"{data.get('confidence', 0)}%")
+        st.metric("市場信心度", f"{data.get('confidence', 0)}%")
     with col3:
         indicators = data.get("key_indicators", {})
         st.markdown(f"**趨勢：** {indicators.get('trend', '-')}")

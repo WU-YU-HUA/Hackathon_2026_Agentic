@@ -42,6 +42,20 @@ def get_technical_data(symbol: str, boll_window: int = 20, boll_dev: float = 2.0
             "rsi_window": rsi_window,
         }
         res = _fetch_technical_data(test_name="get_technical_data", payload=payload)
+        if res and isinstance(res, dict) and "data" in res:
+            data_dict = res["data"]
+            
+            # 設定每個時間級別最多保留幾筆 (可依需求調整，建議 50~200)
+            MAX_RECORDS = 200 
+            
+            # 確保 data_dict 是字典格式
+            if isinstance(data_dict, dict):
+                for interval_key, klines in data_dict.items():
+                    # 確保裡面是陣列再進行切片
+                    if isinstance(klines, list):
+                        # 只保留最後 MAX_RECORDS 筆最新的 K 線
+                        data_dict[interval_key] = klines[-MAX_RECORDS:]
+                        
         return res if res else {"error": "無法取得技術指標數據"}
     except Exception as e:
         return {"error": f"取得技術數據失敗: {str(e)}"}
@@ -104,13 +118,13 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "get_crypto_news",
-            "description": "【新聞/消息面】取得最新加密貨幣新聞列表與動態。當使用者詢問『新聞』、『最新消息』、『發生什麼事』或『市場動態』時【必須】優先呼叫此工具。切勿呼叫技術指標工具！",
+            "description": "【新聞原始數據】取得加密貨幣新聞列表。注意：此工具會回傳大量原始數據，除非使用者明確要求『列出新聞標題』，否則請優先使用 get_news_ai_analysis。",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "tag": {
                         "type": "string",
-                        "description": "新聞主題或幣種代號，例如 'BTC'、'ETH'、'bitcoin'。若使用者輸入中文（如：彼特幣、比特幣）請自動轉為標準英文代號 (如 'BTC')。不傳則回傳綜合新聞。"
+                        "description": "新聞主題或幣種代號，例如 'BTC'。若使用者輸入中文請自動轉為標準英文代號。不傳則回傳綜合新聞。"
                     }
                 },
                 "required": []
@@ -121,13 +135,13 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "get_news_ai_analysis",
-            "description": "【新聞面 AI 分析】針對特定主題的新聞進行 AI 重點摘要、重大事件整理與整體情緒判讀。當使用者要求對新聞進行『分析、情緒解讀、摘要重點』時呼叫。",
+            "description": "【🏆 新聞面首選】針對特定主題的新聞進行 AI 重點摘要、重大事件整理與整體情緒判讀。當使用者詢問『新聞』、『最新消息』、『發生什麼事』或『市場動態』時，【必須優先】呼叫此工具。",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "tag": {
                         "type": "string",
-                        "description": "新聞主題或幣種代號，例如 'BTC'、'ETH'。若為中文請自動修正轉為英文代號 (如 'BTC')。"
+                        "description": "新聞主題或幣種代號，例如 'BTC'、'ETH'。"
                     }
                 },
                 "required": ["tag"]
@@ -138,13 +152,13 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "get_technical_data",
-            "description": "【僅限純技術指標】取得加密貨幣的價格、RSI、布林通道(Bollinger Bands)、MA/EMA 等純指標數據。【注意】僅在使用者詢問技術指標數值時使用，切勿在查詢新聞或消息時呼叫此工具！",
+            "description": "【⚠️ 警告：回傳數據極大，易導致系統崩潰】取得原始技術指標數據。除非使用者明確要求『我要看具體的 RSI 數值或原始資料』，否則【絕對禁止】呼叫此工具！若要分析趨勢，請務必改用 get_kline_ai_analysis。",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "symbol": {
                         "type": "string",
-                        "description": "加密貨幣交易對名稱，例如 'BTCUSDT', 'ETHUSDT'。若為中文（如：彼特幣）請自動轉為 'BTC' 或 'BTCUSDT'。"
+                        "description": "加密貨幣交易對名稱，例如 'BTCUSDT'。"
                     },
                     "boll_window": {
                         "type": "integer",
@@ -167,7 +181,7 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "get_kline_ai_analysis",
-            "description": "【技術面 AI 分析】對 K 線與技術指標進行 AI 趨勢分析並給出操作建議。當使用者要求技術面『分析、判讀、操作策略建議』時呼叫。",
+            "description": "【🏆 技術面首選】對 K 線與技術指標進行 AI 趨勢分析並給出操作建議。當使用者要求『技術面分析、趨勢判讀、操作策略建議、現在看漲還看跌』時，【必須優先】呼叫此工具，切勿呼叫 get_technical_data！",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -184,13 +198,13 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "get_vote_feargreed",
-            "description": "【情緒數據】取得市場的恐懼與貪婪指數 (Crypto Fear & Greed Index) 以及社群多空投票比例 (0~100，0代表極度恐懼)。",
+            "description": "【情緒原始數據】取得市場的恐懼與貪婪指數以及社群多空投票比例。除非使用者單純只想看『指數是多少』，否則分析時請優先使用 get_social_ai_analysis。",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "symbol": {
                         "type": "string",
-                        "description": "幣種代號，例如 'BTC'、'ETH'。預設 'BTC'。"
+                        "description": "幣種代號，例如 'BTC'。預設 'BTC'。"
                     },
                     "limit": {
                         "type": "integer",
@@ -205,13 +219,13 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "get_social_ai_analysis",
-            "description": "【情緒面 AI 分析】結合恐懼貪婪指數與社群投票，交由 AI 分析市場當前的極端情緒狀態與操作建議。",
+            "description": "【🏆 情緒面首選】結合恐懼貪婪指數與社群投票，交由 AI 分析市場當前的極端情緒狀態與操作建議。當需要評估『市場情緒、該恐懼還是貪婪』時請優先呼叫此工具。",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "symbol": {
                         "type": "string",
-                        "description": "幣種代號，例如 'BTC'、'ETH'。預設 'BTC'。"
+                        "description": "幣種代號，例如 'BTC'。預設 'BTC'。"
                     },
                     "limit": {
                         "type": "integer",

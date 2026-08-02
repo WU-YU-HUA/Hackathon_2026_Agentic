@@ -4,12 +4,43 @@ import json
 from app.components.onboarding import render_risk_selector, render_pair_selector
 from app.components.dashboard import render_dashboard
 from api.getData import fetch_technical_data 
-from api.social import get_vote_feargreed      
+from api.social import get_vote_feargreed       
 from api.news import fetch_news
 from api.news_ai import invoke_analyzer
 from api.kline_ai import invoke_kline_analyzer
 from api.social_ai import invoke_social_analyzer
-from app.components.report_generator import generate_html_report, generate_ai_report_markdown
+from app.components.report_generator import generate_html_report
+from api.ai_report import invoke_summary_analyzer  
+
+def filter_kline_data(kline_data, tech_config):
+    """根據使用者的側邊欄設定，過濾掉未勾選的指標欄位，讓 Payload 更乾淨"""
+    if not kline_data:
+        return {}
+
+    # 永遠保留的基礎 K 線欄位
+    allowed_keys = {"timestamp", "open", "high", "low", "close", "volume"}
+    
+    # 根據勾選狀態，動態加入允許的欄位
+    if tech_config.get("bollinger"):
+        allowed_keys.update(["bb_middle", "bb_upper", "bb_lower"])
+    if tech_config.get("rsi"):
+        allowed_keys.add("rsi")
+    if tech_config.get("ma"):
+        allowed_keys.update(["ma_7", "ma_25", "ma_99"])
+    if tech_config.get("ema"):
+        allowed_keys.update(["ema_7", "ema_25", "ema_99"])
+
+    clean_data = {}
+    for interval, records in kline_data.items():
+        if isinstance(records, list):
+            clean_records = []
+            for row in records:
+                # 字典推導式：只保留在 allowed_keys 白名單裡的欄位
+                clean_row = {k: v for k, v in row.items() if k in allowed_keys}
+                clean_records.append(clean_row)
+            clean_data[interval] = clean_records
+            
+    return clean_data
 
 def render_chat_tab(tools_config):
     st.header("🤖 AI 投資助手")
@@ -50,8 +81,8 @@ def render_chat_tab(tools_config):
         st.session_state.risk_level = None
         st.session_state.selected_pair = None
         st.session_state.show_dashboard = False
-        if 'ai_report_md' in st.session_state:
-            del st.session_state.ai_report_md
+        if 'ai_report_data' in st.session_state:
+            del st.session_state.ai_report_data
         st.rerun()
 
     # 顯示對話紀錄
@@ -88,18 +119,30 @@ def render_chat_tab(tools_config):
             # 1. 抓取技術指標 (一次拿到 15m, 1h, 6h, 1d 數據)
             if any(tech_config.values()):
                 kline_res = fetch_technical_data("ChatTab Tech Fetch", {"symbol": symbol_param})
+                
+                # 🌟 核心過濾：將原始資料丟進白名單過濾器
+                raw_data = kline_res.get("data", {})
+                clean_kline_data = filter_kline_data(raw_data, tech_config)
+                
+                # 把過濾後乾淨的資料塞回去
+                if "data" in kline_res:
+                    kline_res["data"] = clean_kline_data
+
                 result_data["kline_response"] = kline_res
+                
+                # 🌟 將「乾淨無雜質」的資料傳給 kline_analyzer
                 result_data["kline_report"] = invoke_kline_analyzer(
                     symbol=symbol_param, 
-                    kline_data=kline_res.get("data", {})
+                    kline_data=clean_kline_data
                 )
 
             # 2. 抓取社群情緒與恐懼貪婪指數 (合併呼叫)
             if sentiment_config.get("fear_greed") or sentiment_config.get("long_short"):
-                social_fg_res = get_vote_feargreed("ChatTab Social Fetch", {"symbol": symbol.lower(), "limit": 1})
+                social_fg_res = get_vote_feargreed("ChatTab Social Fetch", {"symbol": symbol.lower(), "limit": 7})
                 result_data["social_fg_data"] = social_fg_res
-                result_data["fear_greed"] = social_fg_res.get("fear_and_greed")
+                result_data["fear_greed"] = social_fg_res.get("fear_and_greed")[0]
                 result_data["long_short"] = social_fg_res.get("community_sentiment")
+                
                 result_data["social_report"] = invoke_social_analyzer(
                     symbol=symbol,
                     fear_and_greed=social_fg_res.get("fear_and_greed"),
@@ -127,15 +170,43 @@ def render_chat_tab(tools_config):
         with col_title:
             st.subheader("📝 AI 綜合分析與投資建議")
             
-        if 'ai_report_md' not in st.session_state:
-            with st.spinner("🤖 AI 正在根據您的風險等級撰寫專屬報告..."):
-                api_key = tools_config.get("gemini_api_key")
-                st.session_state.ai_report_md = generate_ai_report_markdown(st.session_state.analysis_result, api_key)
+        if 'ai_report_data' not in st.session_state:
+            with st.spinner("🤖 AI 正在整合各維度數據撰寫專屬報告..."):
+                analysis = st.session_state.analysis_result
+                
+                # 🌟 根據 tools_config 嚴格過濾傳遞給 AI 的報告，沒開啟的直接丟棄為 {}
+                cfg_tech = tools_config.get("tech_tools", {})
+                cfg_sent = tools_config.get("sentiment_tools", {})
+                cfg_news = tools_config.get("news_tools", {})
+                
+                # 若有任何技術指標開啟，才傳遞 kline_report
+                clean_tech_report = analysis.get("kline_report", {}) if any(cfg_tech.values()) else {}
+                
+                # 若有任何情緒指標開啟，才傳遞 social_report
+                clean_social_report = analysis.get("social_report", {}) if (cfg_sent.get("fear_greed") or cfg_sent.get("long_short")) else {}
+                
+                # 若新聞開啟，才傳遞 news_report
+                clean_news_report = analysis.get("news_report", {}) if cfg_news.get("news") else {}
+                
+                try:
+                    st.session_state.ai_report_data = invoke_summary_analyzer(
+                        symbol=analysis.get("symbol", "BTC"),
+                        risk_level=analysis.get("risk_level", 5),
+                        technical_report=clean_tech_report,
+                        social_report=clean_social_report,
+                        news_report=clean_news_report
+                    )
+                except Exception as e:
+                    st.error(f"⚠️ 彙整報告生成失敗: {e}")
+                    st.session_state.ai_report_data = {}
         
-        st.markdown(st.session_state.ai_report_md)
+        # 提取 Markdown 報告並渲染
+        report_md = st.session_state.ai_report_data.get("report_markdown", "⚠️ 無法取得 AI 報告內容。")
+        st.markdown(report_md)
         
         with col_btn:
-            html_string = generate_html_report(st.session_state.analysis_result, st.session_state.ai_report_md)
+            # 傳遞完整的 JSON 給 HTML 產生器
+            html_string = generate_html_report(st.session_state.analysis_result, st.session_state.ai_report_data)
             
             st.download_button(
                 label="📥 下載 HTML 報告",
